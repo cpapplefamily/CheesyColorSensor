@@ -11,10 +11,17 @@
 
 //#define s0 8       
 //#define s1 9
-#define s2 10
-#define s3 9
-#define out 11
-#define led_EN 8
+//Sensor 0
+#define led_EN_0 8
+#define s2_0 10
+#define s3_0 9
+#define out_0 11
+
+//Sensor 2
+#define led_EN_1 4
+#define s2_1 6
+#define s3_1 5
+#define out_1 7
 
 int data=0;        
 
@@ -22,16 +29,16 @@ void setup()
 {
    //pinMode(s0,OUTPUT);   
    //pinMode(s1,OUTPUT);
-   pinMode(s2,OUTPUT);
-   pinMode(s3,OUTPUT);
-   pinMode(out,INPUT);
-   pinMode(led_EN, OUTPUT);
+   pinMode(s2_0,OUTPUT);
+   pinMode(s3_0,OUTPUT);
+   pinMode(out_0,INPUT);
+   pinMode(led_EN_0, OUTPUT);
 
    Serial.begin(9600);   
    
    //digitalWrite(s0,HIGH); //Putting S0/S1 on HIGH/HIGH levels means the output frequency scalling is at 100% (recommended)
    //digitalWrite(s1,HIGH); 
-   digitalWrite(led_EN,HIGH); 
+   digitalWrite(led_EN_0,HIGH); 
 
    
 }
@@ -39,26 +46,26 @@ void setup()
 void loop()                  //Every 0.2s we select a photodiodes set and read its data
 {
 
-   digitalWrite(s2,LOW);        //S2/S3 levels define which set of photodiodes we are using LOW/LOW is for RED LOW/HIGH is for Blue and HIGH/HIGH is for green
-   digitalWrite(s3,LOW);
+   digitalWrite(s2_0,LOW);        //S2/S3 levels define which set of photodiodes we are using LOW/LOW is for RED LOW/HIGH is for Blue and HIGH/HIGH is for green
+   digitalWrite(s3_0,LOW);
    Serial.print("Red value= "); 
-   data=pulseIn(out,LOW);  //here we wait until "out" go LOW, we start measuring the duration      and stops when "out" is HIGH again
+   data=pulseIn(out_0,LOW);  //here we wait until "out" go LOW, we start measuring the duration      and stops when "out" is HIGH again
    Serial.print(map(data,60,15,0,100));        
    Serial.print("\t");          
    delay(20);
                       
-   digitalWrite(s2,LOW);
-   digitalWrite(s3,HIGH);
+   digitalWrite(s2_0,LOW);
+   digitalWrite(s3_0,HIGH);
    Serial.print("Blue value= ");
-   data=pulseIn(out,LOW);  //here we wait until "out" go LOW, we start measuring the duration and stops when "out" is HIGH again
+   data=pulseIn(out_0,LOW);  //here we wait until "out" go LOW, we start measuring the duration and stops when "out" is HIGH again
    Serial.print(map(data,80,11,0,100));          
    Serial.print("\t");          
    delay(20);
 
-   digitalWrite(s2,HIGH);
-   digitalWrite(s3,HIGH);
+   digitalWrite(s2_0,HIGH);
+   digitalWrite(s3_0,HIGH);
    Serial.print("Green value= ");
-   data=pulseIn(out,LOW);  //here we wait until "out" go LOW, we start measuring the duration and stops when "out" is HIGH again
+   data=pulseIn(out_0,LOW);  //here we wait until "out" go LOW, we start measuring the duration and stops when "out" is HIGH again
    Serial.print(map(data,80,20,0,100));          
    Serial.print("\t");          
    delay(20);
