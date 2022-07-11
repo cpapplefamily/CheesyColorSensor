@@ -23,53 +23,56 @@
 #define s3_1 5
 #define out_1 7
 
-int data=0;        
+int pdata=0;        
+
+#include "GY_31.h"
+
+GY_31 sensor1(s2_0,s3_0,out_0,led_EN_0);
+GY_31 sensor2(s2_1, s3_1, out_1, led_EN_1);
 
 void setup() 
 {
-   //pinMode(s0,OUTPUT);   
-   //pinMode(s1,OUTPUT);
-   pinMode(s2_0,OUTPUT);
-   pinMode(s3_0,OUTPUT);
-   pinMode(out_0,INPUT);
-   pinMode(led_EN_0, OUTPUT);
 
    Serial.begin(9600);   
-   
-   //digitalWrite(s0,HIGH); //Putting S0/S1 on HIGH/HIGH levels means the output frequency scalling is at 100% (recommended)
-   //digitalWrite(s1,HIGH); 
-   digitalWrite(led_EN_0,HIGH); 
-
-   
+   sensor1.enableLEDs();  
+   sensor2.enableLEDs();  
 }
+
 
 void loop()                  //Every 0.2s we select a photodiodes set and read its data
 {
-
-   digitalWrite(s2_0,LOW);        //S2/S3 levels define which set of photodiodes we are using LOW/LOW is for RED LOW/HIGH is for Blue and HIGH/HIGH is for green
-   digitalWrite(s3_0,LOW);
-   Serial.print("Red value= "); 
-   data=pulseIn(out_0,LOW);  //here we wait until "out" go LOW, we start measuring the duration      and stops when "out" is HIGH again
-   Serial.print(map(data,60,15,0,100));        
-   Serial.print("\t");          
-   delay(20);
-                      
-   digitalWrite(s2_0,LOW);
-   digitalWrite(s3_0,HIGH);
-   Serial.print("Blue value= ");
-   data=pulseIn(out_0,LOW);  //here we wait until "out" go LOW, we start measuring the duration and stops when "out" is HIGH again
-   Serial.print(map(data,80,11,0,100));          
+   long int t1 = millis();
+   
+   
+   Serial.print("Red 1 value= "); 
+   pdata=sensor1.getRED();// pulseIn(out_0,LOW);  //here we wait until "out" go LOW, we start measuring the duration      and stops when "out" is HIGH again
+   Serial.print(map(pdata,60,15,0,100));        
    Serial.print("\t");          
    delay(20);
 
-   digitalWrite(s2_0,HIGH);
-   digitalWrite(s3_0,HIGH);
-   Serial.print("Green value= ");
-   data=pulseIn(out_0,LOW);  //here we wait until "out" go LOW, we start measuring the duration and stops when "out" is HIGH again
-   Serial.print(map(data,80,20,0,100));          
+   Serial.print("Blue 1 value= ");
+   pdata=sensor1.getBLUE();// pulseIn(out_0,LOW);  //here we wait until "out" go LOW, we start measuring the duration and stops when "out" is HIGH again
+   Serial.print(map(pdata,80,11,0,100));          
+   Serial.print("\t");          
+   delay(20);
+   
+   Serial.print("Red 2 value= "); 
+   pdata=sensor2.getRED();// pulseIn(out_0,LOW);  //here we wait until "out" go LOW, we start measuring the duration      and stops when "out" is HIGH again
+   Serial.print(map(pdata,60,15,0,100));        
    Serial.print("\t");          
    delay(20);
 
+   Serial.print("Blue 2 value= ");
+   pdata=sensor2.getBLUE();// pulseIn(out_0,LOW);  //here we wait until "out" go LOW, we start measuring the duration and stops when "out" is HIGH again
+   Serial.print(map(pdata,80,11,0,100));          
+   Serial.print("\t");          
+   delay(20);
+       
+
+
+   long int t2 = millis();
+   Serial.println("Time taken by the task: "); 
+   Serial.print(t2-t1); Serial.println(" milliseconds");
    Serial.println();
 
    delay(200);
