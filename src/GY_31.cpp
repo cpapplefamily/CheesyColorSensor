@@ -34,6 +34,13 @@ void GY_31::disableLEDs(){
 void GY_31::enableLEDs(){
     digitalWrite(LED_Pin, HIGH);
 };
+void GY_31::enableLEDs(boolean enable){
+  if(enable){
+    digitalWrite(LED_Pin, HIGH);
+  }else{
+    digitalWrite(LED_Pin, LOW);
+  }
+};
 
 
 

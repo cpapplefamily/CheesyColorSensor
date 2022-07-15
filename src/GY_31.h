@@ -14,5 +14,6 @@ class GY_31 {
     int getBLUE();
     void disableLEDs();
     void enableLEDs();
+    void enableLEDs(boolean enable);
     
 };

@@ -1,4 +1,14 @@
 #include <Arduino.h>
+#include "FastLED.h"
+
+
+#define NUM_LEDS      8
+#define LED_TYPE   WS2812B
+#define COLOR_ORDER   GRB
+#define DATA_PIN        3
+//#define CLK_PIN       4
+#define VOLTS          5
+#define MAX_MA       1000
 
     /*
   GY-31-TCS3200-Color-Recognition-Sensor-Module
@@ -60,7 +70,8 @@
 
 
 int reddata=0;        
-int bluedata=0;        
+int bluedata=0;   
+bool enplot = true;     
 
 #include "GY_31.h"
 
@@ -73,23 +84,10 @@ GY_31 sensor6(s2_6, s3_6, out_6, led_EN_6);
 GY_31 sensor7(s2_7, s3_7, out_7, led_EN_7);
 GY_31 sensor8(s2_8, s3_8, out_8, led_EN_8);
 
-void setup() {
+CRGBArray<NUM_LEDS> leds;
 
-   Serial.begin(9600);   
-   sensor1.enableLEDs();  
-   //sensor1.disableLEDs();  
-   sensor2.disableLEDs();  
-   sensor3.disableLEDs();  
-   sensor4.disableLEDs();  
-   sensor5.disableLEDs();  
-   sensor6.disableLEDs();  
-   sensor7.disableLEDs();  
-   sensor8.disableLEDs();  
-}
 
-bool enplot = true;
-
-void loop(){
+void TestSensor1(){
    long int t1 = millis();
    
    reddata=sensor1.getRED();
@@ -179,5 +177,67 @@ void ScanValues(){
    Serial.print(t2-t1); Serial.println(" milliseconds");
    Serial.println();
 
+   delay(200);
+}
+
+void testSensor(GY_31 sensor0){
+   long int t1 = millis();
+   
+   reddata=sensor0.getRED();
+   bluedata=sensor0.getBLUE();
+   if(!enplot){
+      Serial.print("Red 1 value= "); 
+      Serial.print(map(reddata,700,75,0,100));        
+   }else{
+      //Serial.print("Red: "); 
+      Serial.print(map(bluedata,700,75,0,100)); 
+      Serial.print(","); 
+
+      Serial.println(map(reddata,700,75,0,100));        
+   };
+   if(!enplot){
+      Serial.print("\t"); 
+      long int t2 = millis();
+      Serial.println("Time taken by the task: "); 
+      Serial.print(t2-t1); Serial.println(" milliseconds");
+      Serial.println();   
+   }
+   
+}
+
+void setup() {
+
+   Serial.begin(9600);   
+   sensor1.enableLEDs(false);  
+   sensor2.enableLEDs(false);  
+   sensor3.enableLEDs(false);  
+   sensor4.enableLEDs(false);  
+   sensor5.enableLEDs(false);  
+   sensor6.enableLEDs(false);  
+   sensor7.enableLEDs(false);  
+   sensor8.enableLEDs(false);  
+
+   FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
+   FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+   FastLED.setBrightness(10);
+}
+String sensor;
+void loop(){
+   leds[0] = CRGB::Blue;
+   leds[1] = CRGB::Red;
+   leds[2] = CRGB::Blue;
+   leds[3] = CRGB::Red;
+   leds[4] = CRGB::Blue;
+   leds[5] = CRGB::Red;
+   leds[6] = CRGB::Blue;
+   leds[7] = CRGB::Red;
+   FastLED.show();
+   sensor = "sensor" + 1;
+   testSensor(sensor1);
+   testSensor(sensor2);
+   testSensor(sensor3);
+   testSensor(sensor4);
+   testSensor(sensor5);
+   testSensor(sensor6);
    delay(200);
 }
