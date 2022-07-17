@@ -93,109 +93,23 @@ GY_31 lowerSensors[] = {
 CRGBArray<NUM_LEDS> leds;
 
 
-/* void TestSensor1(){
-   long int t1 = millis();
-   
-   reddata=sensors[0].getRED();
-   bluedata=sensors[0].getBLUE();
-   if(!EN_PLOT){
-      Serial.print("Red 1 value= "); 
-      Serial.print(map(reddata,700,75,0,100));        
-   }else{
-      //Serial.print("Red: "); 
-      Serial.print(map(bluedata,700,75,0,100)); 
-      Serial.print(","); 
-
-      Serial.println(map(reddata,700,75,0,100));        
-   };
-   if(!EN_PLOT){
-      Serial.print("\t"); 
-      long int t2 = millis();
-      Serial.println("Time taken by the task: "); 
-      Serial.print(t2-t1); Serial.println(" milliseconds");
-      Serial.println();   
-   }
-   delay(200);
-}
-
-void marqueLED(){
-   unsigned long stepdelay = 1000;
-
-   sensors[0].enableLEDs();
-   delay(stepdelay);
-   sensors[0].disableLEDs();
-   sensors[1].enableLEDs();
-   delay(stepdelay);
-   sensors[1].disableLEDs();
-   sensors[2].enableLEDs();
-   delay(stepdelay);
-   sensors[2].disableLEDs();
-   sensors[3].enableLEDs();
-   delay(stepdelay);
-   sensors[3].disableLEDs();
-   sensors[4].enableLEDs();
-   delay(stepdelay);
-   sensors[4].disableLEDs();
-   sensors[5].enableLEDs();
-   delay(stepdelay);
-   sensors[5].disableLEDs();
-   sensors[6].enableLEDs();
-   delay(stepdelay);
-   sensors[6].disableLEDs();
-   sensors[7].enableLEDs();
-   delay(stepdelay);
-   sensors[7].disableLEDs();
-}
-
-void ScanValues(){
-   
-   long int t1 = millis();
-   
-   Serial.print("Red 1 value= "); 
-   reddata=sensors[0].getRED();
-   Serial.print(map(reddata,60,15,0,100));        
-   Serial.print("\t");          
-   delay(20);
-
-   Serial.print("Blue 1 value= ");
-   reddata=sensors[0].getBLUE();
-   Serial.print(map(reddata,80,11,0,100));          
-   Serial.print("\t");          
-   delay(20);
-   
-   Serial.print("Red 2 value= "); 
-   reddata=sensors[1].getRED();
-   Serial.print(map(reddata,60,15,0,100));        
-   Serial.print("\t");          
-   delay(20);
-
-   Serial.print("Blue 2 value= ");
-   reddata=sensors[1].getBLUE();
-   Serial.print(map(reddata,80,11,0,100));          
-   Serial.print("\t");          
-   delay(20);
-       
-
-
-   long int t2 = millis();
-   Serial.println("Time taken by the task: "); 
-   Serial.print(t2-t1); Serial.println(" milliseconds");
-   Serial.println();
-
-   delay(200);
-} */
-
 //REturn the Sensor State and set the LED color CGRB byReference
 SensorState testSensor(GY_31 sensor, CRGB& led){
    SensorState state;
+
+   //Get Sensor Color Reading
    reddata=map(sensor.getRED(),700,75,0,100);
    bluedata=map(sensor.getBLUE(),700,75,0,100);
+
+   // the lower value for easier plotting. Value idiles @ -300
    if(reddata<-10){
       reddata = -10;
    }
    if(bluedata<-10){
       bluedata = -10;
    }
+
+   //Set some Trigger Threasholds
    int redThresh = 50;
    int blueThresh = 50;
    if((reddata>redThresh) & (reddata>bluedata)){
@@ -225,8 +139,10 @@ SensorState testSensor(GY_31 sensor, CRGB& led){
 
 
 void setup() {
+   //Open a serial port, currently for debugging but will be used for Arduino > RassperyPi > FMS data transfer
    Serial.begin(9600); 
 
+   //Set sensor state and turn on all LED's
    for(int i=0; i<NUM_UPPER_SENSORS ; i++){
       upperSensorState[i] = SensorState::NONE; 
       _upperSensorState[i] = SensorState::NONE; 
@@ -238,21 +154,31 @@ void setup() {
       lowerSensors[i].enableLEDs(true);
    }   
     
-   
+   //Set up RGB LED strip lights
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
    FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
    FastLED.setBrightness(10);
 }
 
+
+/**
+ * Main Loop
+ * 
+ * 
+ */
+
 long int hartBeatTck = 0;
 long int currentTime = 0;
 boolean hartBeat = false;
+int upperLED_Offset = 1;
+int lowerLED_Offset = 5;
 
 void loop(){
    long int currentTime = millis();
 
+   //Loop through sensor
    for(int i=0; i<NUM_UPPER_SENSORS ; i++){
-      upperSensorState[i] = testSensor(upperSensors[i], leds[i+1]);
+      upperSensorState[i] = testSensor(upperSensors[i], leds[i + upperLED_Offset]);
       if(_upperSensorState[i]!=upperSensorState[i]){
          if(!EN_PLOT){
             Serial.print("Senesor-" + String(i) + " ");
@@ -262,10 +188,10 @@ void loop(){
       } 
    }
 
-   int lowerLED_Offset = 5;
+   
 
    for(int i=0; i<NUM_LOWER_SENSORS ; i++){
-      lowerSensorState[i] = testSensor(lowerSensors[i], leds[i+lowerLED_Offset]);
+      lowerSensorState[i] = testSensor(lowerSensors[i], leds[i + lowerLED_Offset]);
       if(_lowerSensorState[i]!=lowerSensorState[i]){
          if(!EN_PLOT){
             Serial.print("Senesor-" + String(i) + " ");
