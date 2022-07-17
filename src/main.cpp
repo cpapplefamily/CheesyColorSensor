@@ -2,22 +2,13 @@
 #include "FastLED.h"
 
 
-#define NUM_LEDS      8
+#define NUM_LEDS      9
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
 #define DATA_PIN        3
 //#define CLK_PIN       4
 #define VOLTS          5
 #define MAX_MA       1000
-
-    /*
-  GY-31-TCS3200-Color-Recognition-Sensor-Module
-  Modified on 29 Dec 2020
-  by Amir Mohammad Shojaee @ Electropeak
-  Home
-
-  based on create.arduino.cc Example
-*/
 
 //Sensor 1
 #define led_EN_1 8
@@ -67,32 +58,47 @@
 #define s3_8 40
 #define out_8 38
 
+#define NUM_UPPER_SENSORS 4
+#define NUM_LOWER_SENSORS 4
 
+enum SensorState {
+                  NONE,
+                  RED,
+                  BLUE,
+                  GREEN
+                  };
+//Eight storage location for the sensor States
+SensorState upperSensorState[NUM_UPPER_SENSORS];
+SensorState _upperSensorState[NUM_UPPER_SENSORS];
+SensorState lowerSensorState[NUM_LOWER_SENSORS];
+SensorState _lowerSensorState[NUM_LOWER_SENSORS];
 
 int reddata=0;        
 int bluedata=0;   
-bool enplot = true;     
+bool EN_PLOT = false;     
 
 #include "GY_31.h"
 
-GY_31 sensor1(s2_1, s3_1, out_1, led_EN_1);
-GY_31 sensor2(s2_2, s3_2, out_2, led_EN_2);
-GY_31 sensor3(s2_3, s3_3, out_3, led_EN_3);
-GY_31 sensor4(s2_4, s3_4, out_4, led_EN_4);
-GY_31 sensor5(s2_5, s3_5, out_5, led_EN_5);
-GY_31 sensor6(s2_6, s3_6, out_6, led_EN_6);
-GY_31 sensor7(s2_7, s3_7, out_7, led_EN_7);
-GY_31 sensor8(s2_8, s3_8, out_8, led_EN_8);
+GY_31 upperSensors[] = {  
+                     {s2_1, s3_1, out_1, led_EN_1}, 
+                     {s2_2, s3_2, out_2, led_EN_2}, 
+                     {s2_3, s3_3, out_3, led_EN_3}, 
+                     {s2_4, s3_4, out_4, led_EN_4}};
+GY_31 lowerSensors[] = { 
+                     {s2_5, s3_5, out_5, led_EN_5}, 
+                     {s2_6, s3_6, out_6, led_EN_6}, 
+                     {s2_7, s3_7, out_7, led_EN_7}, 
+                     {s2_8, s3_8, out_8, led_EN_8}};
 
 CRGBArray<NUM_LEDS> leds;
 
 
-void TestSensor1(){
+/* void TestSensor1(){
    long int t1 = millis();
    
-   reddata=sensor1.getRED();
-   bluedata=sensor1.getBLUE();
-   if(!enplot){
+   reddata=sensors[0].getRED();
+   bluedata=sensors[0].getBLUE();
+   if(!EN_PLOT){
       Serial.print("Red 1 value= "); 
       Serial.print(map(reddata,700,75,0,100));        
    }else{
@@ -102,7 +108,7 @@ void TestSensor1(){
 
       Serial.println(map(reddata,700,75,0,100));        
    };
-   if(!enplot){
+   if(!EN_PLOT){
       Serial.print("\t"); 
       long int t2 = millis();
       Serial.println("Time taken by the task: "); 
@@ -115,57 +121,56 @@ void TestSensor1(){
 void marqueLED(){
    unsigned long stepdelay = 1000;
 
-   sensor1.enableLEDs();
+   sensors[0].enableLEDs();
    delay(stepdelay);
-   sensor1.disableLEDs();
-   sensor2.enableLEDs();
+   sensors[0].disableLEDs();
+   sensors[1].enableLEDs();
    delay(stepdelay);
-   sensor2.disableLEDs();
-   sensor3.enableLEDs();
+   sensors[1].disableLEDs();
+   sensors[2].enableLEDs();
    delay(stepdelay);
-   sensor3.disableLEDs();
-   sensor4.enableLEDs();
+   sensors[2].disableLEDs();
+   sensors[3].enableLEDs();
    delay(stepdelay);
-   sensor4.disableLEDs();
-   sensor5.enableLEDs();
+   sensors[3].disableLEDs();
+   sensors[4].enableLEDs();
    delay(stepdelay);
-   sensor5.disableLEDs();
-   sensor6.enableLEDs();
+   sensors[4].disableLEDs();
+   sensors[5].enableLEDs();
    delay(stepdelay);
-   sensor6.disableLEDs();
-   sensor7.enableLEDs();
+   sensors[5].disableLEDs();
+   sensors[6].enableLEDs();
    delay(stepdelay);
-   sensor7.disableLEDs();
-   sensor8.enableLEDs();
+   sensors[6].disableLEDs();
+   sensors[7].enableLEDs();
    delay(stepdelay);
-   sensor8.disableLEDs();
+   sensors[7].disableLEDs();
 }
 
 void ScanValues(){
    
    long int t1 = millis();
    
-   
    Serial.print("Red 1 value= "); 
-   reddata=sensor1.getRED();
+   reddata=sensors[0].getRED();
    Serial.print(map(reddata,60,15,0,100));        
    Serial.print("\t");          
    delay(20);
 
    Serial.print("Blue 1 value= ");
-   reddata=sensor1.getBLUE();
+   reddata=sensors[0].getBLUE();
    Serial.print(map(reddata,80,11,0,100));          
    Serial.print("\t");          
    delay(20);
    
    Serial.print("Red 2 value= "); 
-   reddata=sensor2.getRED();
+   reddata=sensors[1].getRED();
    Serial.print(map(reddata,60,15,0,100));        
    Serial.print("\t");          
    delay(20);
 
    Serial.print("Blue 2 value= ");
-   reddata=sensor2.getBLUE();
+   reddata=sensors[1].getBLUE();
    Serial.print(map(reddata,80,11,0,100));          
    Serial.print("\t");          
    delay(20);
@@ -178,66 +183,109 @@ void ScanValues(){
    Serial.println();
 
    delay(200);
-}
+} */
 
-void testSensor(GY_31 sensor0){
-   long int t1 = millis();
-   
-   reddata=sensor0.getRED();
-   bluedata=sensor0.getBLUE();
-   if(!enplot){
-      Serial.print("Red 1 value= "); 
-      Serial.print(map(reddata,700,75,0,100));        
-   }else{
-      //Serial.print("Red: "); 
-      Serial.print(map(bluedata,700,75,0,100)); 
-      Serial.print(","); 
-
-      Serial.println(map(reddata,700,75,0,100));        
-   };
-   if(!enplot){
-      Serial.print("\t"); 
-      long int t2 = millis();
-      Serial.println("Time taken by the task: "); 
-      Serial.print(t2-t1); Serial.println(" milliseconds");
-      Serial.println();   
+//REturn the Sensor State and set the LED color CGRB byReference
+SensorState testSensor(GY_31 sensor, CRGB& led){
+   SensorState state;
+   reddata=map(sensor.getRED(),700,75,0,100);
+   bluedata=map(sensor.getBLUE(),700,75,0,100);
+   if(reddata<-10){
+      reddata = -10;
    }
-   
+   if(bluedata<-10){
+      bluedata = -10;
+   }
+   int redThresh = 50;
+   int blueThresh = 50;
+   if((reddata>redThresh) & (reddata>bluedata)){
+      led = CRGB::Red;
+      state = SensorState::RED;
+   }else if((bluedata>blueThresh) & (bluedata>reddata)){
+      led = CRGB::Blue;
+      state = SensorState::BLUE;
+   }else{
+      led = CRGB::Black;
+      state = SensorState::NONE;
+   }
+/*    if(!EN_PLOT){
+      Serial.print("Red value= "); 
+      Serial.print(reddata);   
+      Serial.print("\t");   
+      Serial.print("Blue value= "); 
+      Serial.println(bluedata);      
+   }else{
+      Serial.print(bluedata); 
+      Serial.print(","); 
+      Serial.println(reddata);        
+   }; */
+
+   return state;
 }
+
 
 void setup() {
+   Serial.begin(9600); 
 
-   Serial.begin(9600);   
-   sensor1.enableLEDs(false);  
-   sensor2.enableLEDs(false);  
-   sensor3.enableLEDs(false);  
-   sensor4.enableLEDs(false);  
-   sensor5.enableLEDs(false);  
-   sensor6.enableLEDs(false);  
-   sensor7.enableLEDs(false);  
-   sensor8.enableLEDs(false);  
-
+   for(int i=0; i<NUM_UPPER_SENSORS ; i++){
+      upperSensorState[i] = SensorState::NONE; 
+      _upperSensorState[i] = SensorState::NONE; 
+      upperSensors[i].enableLEDs(true);
+   }   
+   for(int i=0; i<NUM_LOWER_SENSORS ; i++){
+      lowerSensorState[i] = SensorState::NONE; 
+      _lowerSensorState[i] = SensorState::NONE; 
+      lowerSensors[i].enableLEDs(true);
+   }   
+    
+   
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
    FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
    FastLED.setBrightness(10);
 }
-String sensor;
+
+long int hartBeatTck = 0;
+long int currentTime = 0;
+boolean hartBeat = false;
+
 void loop(){
-   leds[0] = CRGB::Blue;
-   leds[1] = CRGB::Red;
-   leds[2] = CRGB::Blue;
-   leds[3] = CRGB::Red;
-   leds[4] = CRGB::Blue;
-   leds[5] = CRGB::Red;
-   leds[6] = CRGB::Blue;
-   leds[7] = CRGB::Red;
+   long int currentTime = millis();
+
+   for(int i=0; i<NUM_UPPER_SENSORS ; i++){
+      upperSensorState[i] = testSensor(upperSensors[i], leds[i+1]);
+      if(_upperSensorState[i]!=upperSensorState[i]){
+         if(!EN_PLOT){
+            Serial.print("Senesor-" + String(i) + " ");
+            Serial.println(upperSensorState[i]);
+         }
+         _upperSensorState[i]=upperSensorState[i];
+      } 
+   }
+
+   int lowerLED_Offset = 5;
+
+   for(int i=0; i<NUM_LOWER_SENSORS ; i++){
+      lowerSensorState[i] = testSensor(lowerSensors[i], leds[i+lowerLED_Offset]);
+      if(_lowerSensorState[i]!=lowerSensorState[i]){
+         if(!EN_PLOT){
+            Serial.print("Senesor-" + String(i) + " ");
+            Serial.println(lowerSensorState[i]);
+         }
+         _lowerSensorState[i]=lowerSensorState[i];
+      } 
+   }
+
+   //Flip Hartbeat LED
+   if(currentTime > hartBeatTck){
+      hartBeatTck = currentTime + 500;
+      hartBeat = !hartBeat;
+   }
+   if(hartBeat){
+      leds[0] = CRGB::White;
+   }else{
+      leds[0] = CRGB::Black;
+   }
+
    FastLED.show();
-   sensor = "sensor" + 1;
-   testSensor(sensor1);
-   testSensor(sensor2);
-   testSensor(sensor3);
-   testSensor(sensor4);
-   testSensor(sensor5);
-   testSensor(sensor6);
-   delay(200);
+   delay(20);
 }
