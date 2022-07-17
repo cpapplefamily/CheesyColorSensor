@@ -76,6 +76,7 @@ SensorState _lowerSensorState[NUM_LOWER_SENSORS];
 int reddata=0;        
 int bluedata=0;   
 bool EN_PLOT = false;     
+bool EN_PI = true;
 
 #include "GY_31.h"
 
@@ -173,16 +174,46 @@ boolean hartBeat = false;
 int upperLED_Offset = 1;
 int lowerLED_Offset = 5;
 
+/* goal_char_msg_map = {
+    "S": '{ "type": "RU" }',
+    "X": '{ "type": "RL" }',
+    "Y": '{ "type": "BU" }',
+    "H": '{ "type": "BL" }'
+} */
+
 void loop(){
    long int currentTime = millis();
 
-   //Loop through sensor
+   //Loop through upper sensor
    for(int i=0; i<NUM_UPPER_SENSORS ; i++){
       upperSensorState[i] = testSensor(upperSensors[i], leds[i + upperLED_Offset]);
       if(_upperSensorState[i]!=upperSensorState[i]){
-         if(!EN_PLOT){
-            Serial.print("Senesor-" + String(i) + " ");
-            Serial.println(upperSensorState[i]);
+         if(EN_PI){
+            // Pi Stream
+            switch (upperSensorState[i]) {
+               case 0:
+                  // statements
+                  break;
+               case 1:
+                  // statements
+                  Serial.print("S");
+                  break;
+               case 2:
+                  // statements
+                  Serial.print("Y");
+                  break;
+               case 3:
+                  // statements
+                  break;
+               default:
+                  // statements
+                  break;
+               }
+         }else{
+            if(!EN_PLOT){
+               Serial.print("Senesor-" + String(i) + " ");
+               Serial.println(upperSensorState[i]);
+            }
          }
          _upperSensorState[i]=upperSensorState[i];
       } 
@@ -193,10 +224,34 @@ void loop(){
    for(int i=0; i<NUM_LOWER_SENSORS ; i++){
       lowerSensorState[i] = testSensor(lowerSensors[i], leds[i + lowerLED_Offset]);
       if(_lowerSensorState[i]!=lowerSensorState[i]){
-         if(!EN_PLOT){
-            Serial.print("Senesor-" + String(i) + " ");
-            Serial.println(lowerSensorState[i]);
+         if(EN_PI){
+            // Pi Stream
+            switch (lowerSensorState[i]) {
+               case 0:
+                  // statements
+                  break;
+               case 1:
+                  // statements
+                  Serial.print("X");
+                  break;
+               case 2:
+                  // statements
+                  Serial.print("H");
+                  break;
+               case 3:
+                  // statements
+                  break;
+               default:
+                  // statements
+                  break;
+               }
+         }else{
+            if(!EN_PLOT){
+               Serial.print("Senesor-" + String(i) + " ");
+               Serial.println(lowerSensorState[i]);
+            }
          }
+         
          _lowerSensorState[i]=lowerSensorState[i];
       } 
    }
