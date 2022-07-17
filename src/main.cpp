@@ -58,47 +58,47 @@
 #define s3_8 40
 #define out_8 38
 
-#define NUM_SENSORS 8
+#define NUM_UPPER_SENSORS 4
+#define NUM_LOWER_SENSORS 4
 
-enum SensorState {NONE, RED, BLUE, GREEN};
+enum SensorState {
+                  NONE,
+                  RED,
+                  BLUE,
+                  GREEN
+                  };
 //Eight storage location for the sensor States
-SensorState sensorState[NUM_SENSORS];
-SensorState _sensorState[NUM_SENSORS];
+SensorState upperSensorState[NUM_UPPER_SENSORS];
+SensorState _upperSensorState[NUM_UPPER_SENSORS];
+SensorState lowerSensorState[NUM_LOWER_SENSORS];
+SensorState _lowerSensorState[NUM_LOWER_SENSORS];
 
 int reddata=0;        
 int bluedata=0;   
-bool enplot = true;     
+bool EN_PLOT = false;     
 
 #include "GY_31.h"
 
-GY_31 sensors[] = {  {s2_1, s3_1, out_1, led_EN_1}, 
+GY_31 upperSensors[] = {  
+                     {s2_1, s3_1, out_1, led_EN_1}, 
                      {s2_2, s3_2, out_2, led_EN_2}, 
                      {s2_3, s3_3, out_3, led_EN_3}, 
-                     {s2_4, s3_4, out_4, led_EN_4}, 
+                     {s2_4, s3_4, out_4, led_EN_4}};
+GY_31 lowerSensors[] = { 
                      {s2_5, s3_5, out_5, led_EN_5}, 
                      {s2_6, s3_6, out_6, led_EN_6}, 
                      {s2_7, s3_7, out_7, led_EN_7}, 
                      {s2_8, s3_8, out_8, led_EN_8}};
 
-
-/* GY_31 sensor1(s2_1, s3_1, out_1, led_EN_1);
-GY_31 sensors[1](s2_2, s3_2, out_2, led_EN_2);
-GY_31 sensors[2](s2_3, s3_3, out_3, led_EN_3);
-GY_31 sensors[3](s2_4, s3_4, out_4, led_EN_4);
-GY_31 sensors[4](s2_5, s3_5, out_5, led_EN_5);
-GY_31 sensors[5](s2_6, s3_6, out_6, led_EN_6);
-GY_31 sensors[6](s2_7, s3_7, out_7, led_EN_7);
-GY_31 sensors[7](s2_8, s3_8, out_8, led_EN_8); */
-
 CRGBArray<NUM_LEDS> leds;
 
 
-void TestSensor1(){
+/* void TestSensor1(){
    long int t1 = millis();
    
    reddata=sensors[0].getRED();
    bluedata=sensors[0].getBLUE();
-   if(!enplot){
+   if(!EN_PLOT){
       Serial.print("Red 1 value= "); 
       Serial.print(map(reddata,700,75,0,100));        
    }else{
@@ -108,7 +108,7 @@ void TestSensor1(){
 
       Serial.println(map(reddata,700,75,0,100));        
    };
-   if(!enplot){
+   if(!EN_PLOT){
       Serial.print("\t"); 
       long int t2 = millis();
       Serial.println("Time taken by the task: "); 
@@ -183,25 +183,32 @@ void ScanValues(){
    Serial.println();
 
    delay(200);
-}
+} */
 
-SensorState testSensor(GY_31 sensor, CRGB led){
+//REturn the Sensor State and set the LED color CGRB byReference
+SensorState testSensor(GY_31 sensor, CRGB& led){
    SensorState state;
    reddata=map(sensor.getRED(),700,75,0,100);
    bluedata=map(sensor.getBLUE(),700,75,0,100);
-   int redThresh = 70;
-   int blueThresh = 70;
-   if(reddata>redThresh){
+   if(reddata<-10){
+      reddata = -10;
+   }
+   if(bluedata<-10){
+      bluedata = -10;
+   }
+   int redThresh = 50;
+   int blueThresh = 50;
+   if((reddata>redThresh) & (reddata>bluedata)){
       led = CRGB::Red;
       state = SensorState::RED;
-   }else if(bluedata>blueThresh){
+   }else if((bluedata>blueThresh) & (bluedata>reddata)){
       led = CRGB::Blue;
       state = SensorState::BLUE;
    }else{
       led = CRGB::Black;
       state = SensorState::NONE;
    }
-   if(!enplot){
+/*    if(!EN_PLOT){
       Serial.print("Red value= "); 
       Serial.print(reddata);   
       Serial.print("\t");   
@@ -211,7 +218,7 @@ SensorState testSensor(GY_31 sensor, CRGB led){
       Serial.print(bluedata); 
       Serial.print(","); 
       Serial.println(reddata);        
-   };
+   }; */
 
    return state;
 }
@@ -220,11 +227,17 @@ SensorState testSensor(GY_31 sensor, CRGB led){
 void setup() {
    Serial.begin(9600); 
 
-   for(int i=0; i<NUM_SENSORS ; i++){
-      sensorState[i] = SensorState::NONE; 
-      _sensorState[i] = SensorState::NONE; 
-      sensors[i].enableLEDs(false);
+   for(int i=0; i<NUM_UPPER_SENSORS ; i++){
+      upperSensorState[i] = SensorState::NONE; 
+      _upperSensorState[i] = SensorState::NONE; 
+      upperSensors[i].enableLEDs(true);
    }   
+   for(int i=0; i<NUM_LOWER_SENSORS ; i++){
+      lowerSensorState[i] = SensorState::NONE; 
+      _lowerSensorState[i] = SensorState::NONE; 
+      lowerSensors[i].enableLEDs(true);
+   }   
+    
    
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
    FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
@@ -238,19 +251,27 @@ boolean hartBeat = false;
 void loop(){
    long int currentTime = millis();
 
-/*    sensorState[0] = testSensor(sensors[0], leds[1]);
-   sensorState[1] = testSensor(sensors[1], leds[2]);
-   sensorState[2] = testSensor(sensors[2], leds[3]);
-   sensorState[3] = testSensor(sensors[3], leds[4]);
-   sensorState[4] = testSensor(sensors[4], leds[5]);
-   sensorState[5] = testSensor(sensors[5], leds[6]);
-   sensorState[6] = testSensor(sensors[6], leds[7]);
-   sensorState[7] = testSensor(sensors[7], leds[8]); */
+   for(int i=0; i<NUM_UPPER_SENSORS ; i++){
+      upperSensorState[i] = testSensor(upperSensors[i], leds[i+1]);
+      if(_upperSensorState[i]!=upperSensorState[i]){
+         if(!EN_PLOT){
+            Serial.print("Senesor-" + String(i) + " ");
+            Serial.println(upperSensorState[i]);
+         }
+         _upperSensorState[i]=upperSensorState[i];
+      } 
+   }
 
-   for(int i=0; i<NUM_SENSORS ; i++){
-      sensorState[i] = testSensor(sensors[i], leds[i+1]);
-      if(_sensorState[i]!=sensorState[i]){
-         _sensorState[i]=sensorState[i];
+   int lowerLED_Offset = 5;
+
+   for(int i=0; i<NUM_LOWER_SENSORS ; i++){
+      lowerSensorState[i] = testSensor(lowerSensors[i], leds[i+lowerLED_Offset]);
+      if(_lowerSensorState[i]!=lowerSensorState[i]){
+         if(!EN_PLOT){
+            Serial.print("Senesor-" + String(i) + " ");
+            Serial.println(lowerSensorState[i]);
+         }
+         _lowerSensorState[i]=lowerSensorState[i];
       } 
    }
 
@@ -266,5 +287,5 @@ void loop(){
    }
 
    FastLED.show();
-   delay(200);
+   delay(20);
 }
