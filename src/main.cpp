@@ -79,10 +79,15 @@ SensorState _upperSensorState[NUM_UPPER_SENSORS];
 SensorState lowerSensorState[NUM_LOWER_SENSORS];
 SensorState _lowerSensorState[NUM_LOWER_SENSORS];
 
+int upperFilter[NUM_UPPER_SENSORS][10];
+int lowerFilter[NUM_LOWER_SENSORS][10];
+
+
+
 int reddata=0;        
 int bluedata=0;   
-bool EN_PLOT = false;     
-bool EN_PI = true;
+bool EN_PLOT = true;     
+bool EN_PI = false;
 
 #include "GY_31.h"
 
@@ -129,17 +134,6 @@ SensorState testSensor(GY_31 sensor, CRGB& led){
       led = CRGB::Black;
       state = SensorState::NONE;
    }
-/*    if(!EN_PLOT){
-      Serial.print("Red value= "); 
-      Serial.print(reddata);   
-      Serial.print("\t");   
-      Serial.print("Blue value= "); 
-      Serial.println(bluedata);      
-   }else{
-      Serial.print(bluedata); 
-      Serial.print(","); 
-      Serial.println(reddata);        
-   }; */
 
    return state;
 }
@@ -153,12 +147,13 @@ void setup() {
    for(int i=0; i<NUM_UPPER_SENSORS ; i++){
       upperSensorState[i] = SensorState::NONE; 
       _upperSensorState[i] = SensorState::NONE; 
-      upperSensors[i].enableLEDs(true);
+      upperSensors[i].enableLEDs(false);
    }   
+      upperSensors[0].enableLEDs(true);
    for(int i=0; i<NUM_LOWER_SENSORS ; i++){
       lowerSensorState[i] = SensorState::NONE; 
       _lowerSensorState[i] = SensorState::NONE; 
-      lowerSensors[i].enableLEDs(true);
+      lowerSensors[i].enableLEDs(false);
    }   
     
    //Set up RGB LED strip lights
@@ -200,44 +195,65 @@ void loop(){
       //Serial.print("I received: ");
       //Serial.println(incomingByte, DEC);
    }
-
-   //Loop through upper sensor
-   for(int i=0; i<NUM_UPPER_SENSORS ; i++){
+   int running_total = 0;
+   //Loop through upper sensors
+   for(int i=0; i<1 ; i++){
       upperSensorState[i] = testSensor(upperSensors[i], leds[i + UPPER_LED_START]);
-      if(_upperSensorState[i]!=upperSensorState[i]){
-         if(EN_PI){
-            // Pi Stream
-            switch (upperSensorState[i]) {
-               case 0:
-                  // statements
-                  break;
-               case 1:
-                  // statements
-                  Serial.print("S");
-                  break;
-               case 2:
-                  // statements
-                  Serial.print("Y");
-                  break;
-               case 3:
-                  // statements
-                  break;
-               default:
-                  // statements
-                  break;
-               }
-         }else{
-            if(!EN_PLOT){
-               Serial.print("Senesor-" + String(i) + " ");
-               Serial.println(upperSensorState[i]);
-            }
-         }
-         _upperSensorState[i]=upperSensorState[i];
+
+      //Shift the running average
+      for(int j=9; j>0; j--){
+         upperFilter[i][j] = upperFilter[i][j-1];
+         running_total = running_total+upperFilter[i][j];
+      }
+
+      switch (upperSensorState[i]){
+         case 0:
+            /* code */
+            upperFilter[i][0] = 0;
+            break;
+         case 1:
+            /* code */
+            upperFilter[i][0] = 1;
+            break;
+         case 2:
+            /* code */
+            upperFilter[i][0] = -1;
+            break;
+         case 3:
+            /* code */
+            break;
+         
+         default:
+            break;
+      }
+
+      running_total = running_total+upperFilter[i][0];
+      Serial.println(running_total);
+      //delay(200);
+
+      //Serial.println(avg);
+      
+
+      if((running_total > 5) & (_upperSensorState[i]!= SensorState::RED)){
+         Serial.print("SSSSSSS");
+         _upperSensorState[i]= SensorState::RED;
       } 
+      
+      if((running_total < -5) & (_upperSensorState[i]!= SensorState::BLUE)){
+         if(upperSensorState[i] == 2){
+            Serial.print("YYYYYYYYY");
+         }
+         _upperSensorState[i]=SensorState::BLUE;
+      } 
+
+      if(running_total<=1 & running_total>=-1){
+         _upperSensorState[i] = SensorState::NONE;
+         upperSensorState[i] = SensorState::NONE;
+      }
    }
 
    
-
+   /* //Loop through Lower sensors
    for(int i=0; i<NUM_LOWER_SENSORS ; i++){
       lowerSensorState[i] = testSensor(lowerSensors[i], leds[i + LOWER_LED_START]);
       if(_lowerSensorState[i]!=lowerSensorState[i]){
@@ -271,7 +287,7 @@ void loop(){
          
          _lowerSensorState[i]=lowerSensorState[i];
       } 
-   }
+   } */
 
    //Flip Hartbeat LED
    if(currentTime > hartBeatTck){
