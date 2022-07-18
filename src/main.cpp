@@ -2,7 +2,7 @@
 #include "FastLED.h"
 
 
-#define NUM_LEDS      9
+#define NUM_LEDS      10
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
 #define DATA_PIN        3
@@ -60,6 +60,12 @@
 
 #define NUM_UPPER_SENSORS 4
 #define NUM_LOWER_SENSORS 4
+
+#define SIGN_OF_LIFE_AR 0
+#define SIGN_OF_LIFE_PI 1
+#define UPPER_LED_START 2
+#define LOWER_LED_START 6
+
 
 enum SensorState {
                   NONE,
@@ -171,8 +177,6 @@ void setup() {
 long int hartBeatTck = 0;
 long int currentTime = 0;
 boolean hartBeat = false;
-int upperLED_Offset = 1;
-int lowerLED_Offset = 5;
 
 /* goal_char_msg_map = {
     "S": '{ "type": "RU" }',
@@ -180,13 +184,26 @@ int lowerLED_Offset = 5;
     "Y": '{ "type": "BU" }',
     "H": '{ "type": "BL" }'
 } */
+int incomingByte = 0; // for incoming serial data
+bool signOfLife = false;
 
 void loop(){
    long int currentTime = millis();
 
+   if (Serial.available() > 0) {
+      // read the incoming byte:
+      incomingByte = Serial.read();
+
+      // say what you got:
+      signOfLife = true;
+      
+      //Serial.print("I received: ");
+      //Serial.println(incomingByte, DEC);
+   }
+
    //Loop through upper sensor
    for(int i=0; i<NUM_UPPER_SENSORS ; i++){
-      upperSensorState[i] = testSensor(upperSensors[i], leds[i + upperLED_Offset]);
+      upperSensorState[i] = testSensor(upperSensors[i], leds[i + UPPER_LED_START]);
       if(_upperSensorState[i]!=upperSensorState[i]){
          if(EN_PI){
             // Pi Stream
@@ -222,7 +239,7 @@ void loop(){
    
 
    for(int i=0; i<NUM_LOWER_SENSORS ; i++){
-      lowerSensorState[i] = testSensor(lowerSensors[i], leds[i + lowerLED_Offset]);
+      lowerSensorState[i] = testSensor(lowerSensors[i], leds[i + LOWER_LED_START]);
       if(_lowerSensorState[i]!=lowerSensorState[i]){
          if(EN_PI){
             // Pi Stream
@@ -261,10 +278,18 @@ void loop(){
       hartBeatTck = currentTime + 500;
       hartBeat = !hartBeat;
    }
+
    if(hartBeat){
-      leds[0] = CRGB::White;
+      leds[SIGN_OF_LIFE_AR] = CRGB::White;
+      if(signOfLife){
+         leds[SIGN_OF_LIFE_PI] = CRGB::Green;
+      }
    }else{
-      leds[0] = CRGB::Black;
+      leds[SIGN_OF_LIFE_AR] = CRGB::Black;
+      if(signOfLife){
+         signOfLife = false;
+         leds[SIGN_OF_LIFE_PI] = CRGB::Black;
+      }
    }
 
    FastLED.show();
