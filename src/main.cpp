@@ -75,19 +75,18 @@ enum SensorState {
                   };
 //Eight storage location for the sensor States
 SensorState upperSensorState[NUM_UPPER_SENSORS];
-SensorState _upperSensorState[NUM_UPPER_SENSORS];
+SensorState _upperSensorScored[NUM_UPPER_SENSORS];
 SensorState lowerSensorState[NUM_LOWER_SENSORS];
-SensorState _lowerSensorState[NUM_LOWER_SENSORS];
+SensorState _lowerSensorScored[NUM_LOWER_SENSORS];
 
 int upperFilter[NUM_UPPER_SENSORS][10];
 int lowerFilter[NUM_LOWER_SENSORS][10];
-
-
 
 int reddata=0;        
 int bluedata=0;   
 bool EN_PLOT = true;     
 bool EN_PI = false;
+int running_total = 0;
 
 #include "GY_31.h"
 
@@ -106,7 +105,7 @@ CRGBArray<NUM_LEDS> leds;
 
 
 //REturn the Sensor State and set the LED color CGRB byReference
-SensorState testSensor(GY_31 sensor, CRGB& led){
+SensorState getSensorState(GY_31 sensor, CRGB& led){
    SensorState state;
 
    //Get Sensor Color Reading
@@ -124,10 +123,10 @@ SensorState testSensor(GY_31 sensor, CRGB& led){
    //Set some Trigger Threasholds
    int redThresh = 50;
    int blueThresh = 50;
-   if((reddata>redThresh) & (reddata>bluedata)){
+   if((reddata > redThresh) & (reddata > bluedata)){
       led = CRGB::Red;
       state = SensorState::RED;
-   }else if((bluedata>blueThresh) & (bluedata>reddata)){
+   }else if((bluedata > blueThresh) & (bluedata > reddata)){
       led = CRGB::Blue;
       state = SensorState::BLUE;
    }else{
@@ -146,13 +145,13 @@ void setup() {
    //Set sensor state and turn on all LED's
    for(int i=0; i<NUM_UPPER_SENSORS ; i++){
       upperSensorState[i] = SensorState::NONE; 
-      _upperSensorState[i] = SensorState::NONE; 
-      upperSensors[i].enableLEDs(false);
+      _upperSensorScored[i] = SensorState::NONE; 
+      upperSensors[i].enableLEDs(true);
    }   
-      upperSensors[0].enableLEDs(true);
+    
    for(int i=0; i<NUM_LOWER_SENSORS ; i++){
       lowerSensorState[i] = SensorState::NONE; 
-      _lowerSensorState[i] = SensorState::NONE; 
+      _lowerSensorScored[i] = SensorState::NONE; 
       lowerSensors[i].enableLEDs(false);
    }   
     
@@ -180,7 +179,9 @@ boolean hartBeat = false;
     "H": '{ "type": "BL" }'
 } */
 int incomingByte = 0; // for incoming serial data
-bool signOfLife = false;
+bool signOfLifePi = false;
+bool signOfLifePi_ONS = false;
+bool signOfLifePi_ACTIVE = false;
 
 void loop(){
    long int currentTime = millis();
@@ -189,16 +190,14 @@ void loop(){
       // read the incoming byte:
       incomingByte = Serial.read();
 
-      // say what you got:
-      signOfLife = true;
-      
-      //Serial.print("I received: ");
-      //Serial.println(incomingByte, DEC);
+      signOfLifePi = true;
    }
-   int running_total = 0;
+
+   running_total = 0;
    //Loop through upper sensors
-   for(int i=0; i<1 ; i++){
-      upperSensorState[i] = testSensor(upperSensors[i], leds[i + UPPER_LED_START]);
+   for(int i=0; i < 1 ; i++){
+   //for(int i=0; i < NUM_UPPER_SENSORS ; i++){
+      upperSensorState[i] = getSensorState(upperSensors[i], leds[i + UPPER_LED_START]);
 
       //Shift the running average
       for(int j=9; j>0; j--){
@@ -208,15 +207,15 @@ void loop(){
 
       switch (upperSensorState[i]){
          case 0:
-            /* code */
+            /* No Ball */
             upperFilter[i][0] = 0;
             break;
          case 1:
-            /* code */
+            /* RED Ball */
             upperFilter[i][0] = 1;
             break;
          case 2:
-            /* code */
+            /* BLUE Ball */
             upperFilter[i][0] = -1;
             break;
          case 3:
@@ -229,65 +228,79 @@ void loop(){
 
       running_total = running_total+upperFilter[i][0];
       Serial.println(running_total);
-      //delay(200);
-
-      //Serial.println(avg);
       
 
-      if((running_total > 5) & (_upperSensorState[i]!= SensorState::RED)){
-         Serial.print("SSSSSSS");
-         _upperSensorState[i]= SensorState::RED;
+      if((running_total > 5) & (_upperSensorScored[i]!= SensorState::RED)){
+         Serial.print("S");
+         _upperSensorScored[i]= SensorState::RED;
       } 
       
-      if((running_total < -5) & (_upperSensorState[i]!= SensorState::BLUE)){
+      if((running_total < -5) & (_upperSensorScored[i]!= SensorState::BLUE)){
          if(upperSensorState[i] == 2){
-            Serial.print("YYYYYYYYY");
+            Serial.print("Y");
          }
-         _upperSensorState[i]=SensorState::BLUE;
+         _upperSensorScored[i]=SensorState::BLUE;
       } 
 
       if(running_total<=1 & running_total>=-1){
-         _upperSensorState[i] = SensorState::NONE;
+         _upperSensorScored[i] = SensorState::NONE;
          upperSensorState[i] = SensorState::NONE;
       }
    }
 
-   
-   /* //Loop through Lower sensors
-   for(int i=0; i<NUM_LOWER_SENSORS ; i++){
-      lowerSensorState[i] = testSensor(lowerSensors[i], leds[i + LOWER_LED_START]);
-      if(_lowerSensorState[i]!=lowerSensorState[i]){
-         if(EN_PI){
-            // Pi Stream
-            switch (lowerSensorState[i]) {
-               case 0:
-                  // statements
-                  break;
-               case 1:
-                  // statements
-                  Serial.print("X");
-                  break;
-               case 2:
-                  // statements
-                  Serial.print("H");
-                  break;
-               case 3:
-                  // statements
-                  break;
-               default:
-                  // statements
-                  break;
-               }
-         }else{
-            if(!EN_PLOT){
-               Serial.print("Senesor-" + String(i) + " ");
-               Serial.println(lowerSensorState[i]);
-            }
-         }
+      running_total = 0;
+   //Loop through upper sensors
+   for(int i=0; i < NUM_LOWER_SENSORS ; i++){
+      lowerSensorState[i] = getSensorState(lowerSensors[i], leds[i + LOWER_LED_START]);
+
+      //Shift the running average
+      for(int j=9; j>0; j--){
+         lowerFilter[i][j] = lowerFilter[i][j-1];
+         running_total = running_total+lowerFilter[i][j];
+      }
+
+      switch (lowerSensorState[i]){
+         case 0:
+            /* No Ball */
+            lowerFilter[i][0] = 0;
+            break;
+         case 1:
+            /* RED Ball */
+            lowerFilter[i][0] = 1;
+            break;
+         case 2:
+            /* BLUE Ball */
+            lowerFilter[i][0] = -1;
+            break;
+         case 3:
+            /* code */
+            break;
          
-         _lowerSensorState[i]=lowerSensorState[i];
+         default:
+            break;
+      }
+
+      running_total = running_total+lowerFilter[i][0];
+      Serial.println(running_total);
+      
+
+      if((running_total > 5) & (_lowerSensorScored[i]!= SensorState::RED)){
+         Serial.print("S");
+         _lowerSensorScored[i]= SensorState::RED;
       } 
-   } */
+      
+      if((running_total < -5) & (_lowerSensorScored[i]!= SensorState::BLUE)){
+         if(lowerSensorState[i] == 2){
+            Serial.print("Y");
+         }
+         _lowerSensorScored[i]=SensorState::BLUE;
+      } 
+
+      if(running_total<=1 & running_total>=-1){
+         _lowerSensorScored[i] = SensorState::NONE;
+         lowerSensorState[i] = SensorState::NONE;
+      }
+   }
 
    //Flip Hartbeat LED
    if(currentTime > hartBeatTck){
@@ -297,13 +310,17 @@ void loop(){
 
    if(hartBeat){
       leds[SIGN_OF_LIFE_AR] = CRGB::White;
-      if(signOfLife){
+      if(signOfLifePi & !signOfLifePi_ONS){
          leds[SIGN_OF_LIFE_PI] = CRGB::Green;
+         signOfLifePi_ACTIVE = true;
       }
+      signOfLifePi_ONS = true;
    }else{
       leds[SIGN_OF_LIFE_AR] = CRGB::Black;
-      if(signOfLife){
-         signOfLife = false;
+      if(signOfLifePi & signOfLifePi_ACTIVE){
+         signOfLifePi = false;
+         signOfLifePi_ONS = false;
+         signOfLifePi_ACTIVE = false;
          leds[SIGN_OF_LIFE_PI] = CRGB::Black;
       }
    }
