@@ -30,9 +30,9 @@ Debouncer::Debouncer(double debounceTime, DebounceType type){
    * @param debounceTime The number of seconds the value must change from baseline for the filtered
    *     value to change.
    */
-/* Debouncer::Debouncer(double debounceTime) {//Debouncer(double debounceTime);
+Debouncer::Debouncer(double debounceTime) {//Debouncer(double debounceTime);
     Debouncer(debounceTime, kRising);
-}; */
+};
 
 void Debouncer::resetTimer(){
     m_prevTimeSeconds = millis();

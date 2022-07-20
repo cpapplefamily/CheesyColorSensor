@@ -12,6 +12,6 @@ class Debouncer {
     enum DebounceType {kRising, kFalling, kBoth};
     DebounceType m_debounceType;
     Debouncer(double debounceTime, DebounceType type);
-    //Debouncer(double debounceTime);
+    Debouncer(double debounceTime);
     boolean calculate(boolean input); 
 };
