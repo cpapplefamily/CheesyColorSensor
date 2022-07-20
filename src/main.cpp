@@ -79,13 +79,33 @@ SensorState _upperSensorScored[NUM_UPPER_SENSORS];
 SensorState lowerSensorState[NUM_LOWER_SENSORS];
 SensorState _lowerSensorScored[NUM_LOWER_SENSORS];
 
-int upperFilter[NUM_UPPER_SENSORS][10];
-int lowerFilter[NUM_LOWER_SENSORS][10];
+//int upperFilter[NUM_UPPER_SENSORS][10];
+//int lowerFilter[NUM_LOWER_SENSORS][10];
+
+#include "ColorTrigger.h"
+
+ColorTrigger upperTrigger[NUM_UPPER_SENSORS];
+ColorTrigger lowerTrigger[NUM_LOWER_SENSORS];
+
+#include "Debouncer.h"
+double debounceTime = 500;
+Debouncer::DebounceType debounceType = Debouncer::DebounceType::kBoth;
+
+Debouncer upperDebounce[NUM_UPPER_SENSORS] = {
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}
+                                             };
+Debouncer lowerDebounce[NUM_LOWER_SENSORS] = {
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}
+                                             };
 
 int reddata=0;        
 int bluedata=0;   
-bool EN_PLOT = true;     
-bool EN_PI = false;
 int running_total = 0;
 
 #include "GY_31.h"
@@ -146,12 +166,14 @@ void setup() {
    for(int i=0; i<NUM_UPPER_SENSORS ; i++){
       upperSensorState[i] = SensorState::NONE; 
       _upperSensorScored[i] = SensorState::NONE; 
+      upperTrigger[i].reset();
       upperSensors[i].enableLEDs(true);
    }   
     
    for(int i=0; i<NUM_LOWER_SENSORS ; i++){
       lowerSensorState[i] = SensorState::NONE; 
       _lowerSensorScored[i] = SensorState::NONE; 
+      lowerTrigger[i].reset();
       lowerSensors[i].enableLEDs(false);
    }   
     
@@ -199,24 +221,18 @@ void loop(){
    //for(int i=0; i < NUM_UPPER_SENSORS ; i++){
       upperSensorState[i] = getSensorState(upperSensors[i], leds[i + UPPER_LED_START]);
 
-      //Shift the running average
-      for(int j=9; j>0; j--){
-         upperFilter[i][j] = upperFilter[i][j-1];
-         running_total = running_total+upperFilter[i][j];
-      }
-
       switch (upperSensorState[i]){
          case 0:
             /* No Ball */
-            upperFilter[i][0] = 0;
+            running_total = upperTrigger[i].putdata(0);
             break;
          case 1:
             /* RED Ball */
-            upperFilter[i][0] = 1;
+            running_total = upperTrigger[i].putdata(1);
             break;
          case 2:
             /* BLUE Ball */
-            upperFilter[i][0] = -1;
+            running_total = upperTrigger[i].putdata(-1);
             break;
          case 3:
             /* code */
@@ -224,11 +240,7 @@ void loop(){
          
          default:
             break;
-      }
-
-      running_total = running_total+upperFilter[i][0];
-      Serial.println(running_total);
-      
+      }      
 
       if((running_total > 5) & (_upperSensorScored[i]!= SensorState::RED)){
          Serial.print("S");
@@ -242,7 +254,7 @@ void loop(){
          _upperSensorScored[i]=SensorState::BLUE;
       } 
 
-      if(running_total<=1 & running_total>=-1){
+      if((running_total<=1) & (running_total>=-1)){
          _upperSensorScored[i] = SensorState::NONE;
          upperSensorState[i] = SensorState::NONE;
       }
@@ -253,24 +265,18 @@ void loop(){
    for(int i=0; i < NUM_LOWER_SENSORS ; i++){
       lowerSensorState[i] = getSensorState(lowerSensors[i], leds[i + LOWER_LED_START]);
 
-      //Shift the running average
-      for(int j=9; j>0; j--){
-         lowerFilter[i][j] = lowerFilter[i][j-1];
-         running_total = running_total+lowerFilter[i][j];
-      }
-
       switch (lowerSensorState[i]){
          case 0:
             /* No Ball */
-            lowerFilter[i][0] = 0;
+            running_total = lowerTrigger[i].putdata(0);
             break;
          case 1:
             /* RED Ball */
-            lowerFilter[i][0] = 1;
+            running_total = lowerTrigger[i].putdata(1);
             break;
          case 2:
             /* BLUE Ball */
-            lowerFilter[i][0] = -1;
+            running_total = lowerTrigger[i].putdata(-1);
             break;
          case 3:
             /* code */
@@ -279,9 +285,6 @@ void loop(){
          default:
             break;
       }
-
-      running_total = running_total+lowerFilter[i][0];
-      Serial.println(running_total);
       
 
       if((running_total > 5) & (_lowerSensorScored[i]!= SensorState::RED)){
@@ -296,7 +299,7 @@ void loop(){
          _lowerSensorScored[i]=SensorState::BLUE;
       } 
 
-      if(running_total<=1 & running_total>=-1){
+      if((running_total <= 1) & (running_total>=-1)){
          _lowerSensorScored[i] = SensorState::NONE;
          lowerSensorState[i] = SensorState::NONE;
       }

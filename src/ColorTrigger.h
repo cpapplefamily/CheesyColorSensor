@@ -7,5 +7,7 @@ class ColorTrigger {
 
   public:
     ColorTrigger();
-    int putdata(int data);   
+    void reset();
+    int putdata(int data);  
+    int getRunningTotal(); 
 };
