@@ -239,7 +239,7 @@ void loop(){
             //Serial.println("**********RED**************");
             Serial.print("S");
             upperSensorScored_ONS[i]= SensorState::RED;
-            delay(3000);
+            //delay(3000);
          }
       }else if(upperDebounceBLUE[i].calculate((upperSensorState[i] == SensorState::BLUE))){
          //Serial.println("Is blue");
@@ -247,7 +247,7 @@ void loop(){
             //Serial.println("**********BLUE**************");
             Serial.print("H");
             upperSensorScored_ONS[i]= SensorState::BLUE;
-            delay(3000);
+            //delay(3000);
          }
          
       }else{
@@ -267,7 +267,7 @@ void loop(){
            // Serial.println("**********RED**************");
             Serial.print("S");
             lowerSensorScored_ONS[i]= SensorState::RED;
-            delay(3000);
+            //delay(3000);
          }
       }else if(lowerDebounceBLUE[i].calculate((lowerSensorState[i] == SensorState::BLUE))){
          //Serial.println("Is blue");
@@ -275,7 +275,7 @@ void loop(){
             //Serial.println("**********BLUE**************");
             Serial.print("H");
             lowerSensorScored_ONS[i]= SensorState::BLUE;
-            delay(3000);
+            //delay(3000);
          }
          
       }else{
