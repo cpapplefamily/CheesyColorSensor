@@ -75,9 +75,9 @@ enum SensorState {
                   };
 //Eight storage location for the sensor States
 SensorState upperSensorState[NUM_UPPER_SENSORS];
-SensorState _upperSensorScored[NUM_UPPER_SENSORS];
+SensorState upperSensorScored_ONS[NUM_UPPER_SENSORS];
 SensorState lowerSensorState[NUM_LOWER_SENSORS];
-SensorState _lowerSensorScored[NUM_LOWER_SENSORS];
+SensorState lowerSensorScored_ONS[NUM_LOWER_SENSORS];
 
 //int upperFilter[NUM_UPPER_SENSORS][10];
 //int lowerFilter[NUM_LOWER_SENSORS][10];
@@ -91,13 +91,25 @@ ColorTrigger lowerTrigger[NUM_LOWER_SENSORS];
 double debounceTime = 500;
 Debouncer::DebounceType debounceType = Debouncer::DebounceType::kBoth;
 
-Debouncer upperDebounce[NUM_UPPER_SENSORS] = {
+Debouncer upperDebounceRED[NUM_UPPER_SENSORS] = {
                                              {debounceTime, debounceType}, 
                                              {debounceTime, debounceType}, 
                                              {debounceTime, debounceType}, 
                                              {debounceTime, debounceType}
                                              };
-Debouncer lowerDebounce[NUM_LOWER_SENSORS] = {
+Debouncer upperDebounceBLUE[NUM_UPPER_SENSORS] = {
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}
+                                             };
+Debouncer lowerDebounceRED[NUM_LOWER_SENSORS] = {
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}, 
+                                             {debounceTime, debounceType}
+                                             };
+Debouncer lowerDebounceBLUE[NUM_LOWER_SENSORS] = {
                                              {debounceTime, debounceType}, 
                                              {debounceTime, debounceType}, 
                                              {debounceTime, debounceType}, 
@@ -106,7 +118,6 @@ Debouncer lowerDebounce[NUM_LOWER_SENSORS] = {
 
 int reddata=0;        
 int bluedata=0;   
-int running_total = 0;
 
 #include "GY_31.h"
 
@@ -165,17 +176,18 @@ void setup() {
    //Set sensor state and turn on all LED's
    for(int i=0; i<NUM_UPPER_SENSORS ; i++){
       upperSensorState[i] = SensorState::NONE; 
-      _upperSensorScored[i] = SensorState::NONE; 
+      upperSensorScored_ONS[i] = SensorState::NONE; 
       upperTrigger[i].reset();
       upperSensors[i].enableLEDs(true);
    }   
     
    for(int i=0; i<NUM_LOWER_SENSORS ; i++){
       lowerSensorState[i] = SensorState::NONE; 
-      _lowerSensorScored[i] = SensorState::NONE; 
+      lowerSensorScored_ONS[i] = SensorState::NONE; 
       lowerTrigger[i].reset();
       lowerSensors[i].enableLEDs(false);
    }   
+     
     
    //Set up RGB LED strip lights
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
@@ -214,95 +226,61 @@ void loop(){
 
       signOfLifePi = true;
    }
-
-   running_total = 0;
-   //Loop through upper sensors
-   for(int i=0; i < 1 ; i++){
-   //for(int i=0; i < NUM_UPPER_SENSORS ; i++){
+      //Loop through upper sensors
+   //for(int i=0; i < 1 ; i++){
+   for(int i=0; i < NUM_UPPER_SENSORS ; i++){
       upperSensorState[i] = getSensorState(upperSensors[i], leds[i + UPPER_LED_START]);
 
-      switch (upperSensorState[i]){
-         case 0:
-            /* No Ball */
-            running_total = upperTrigger[i].putdata(0);
-            break;
-         case 1:
-            /* RED Ball */
-            running_total = upperTrigger[i].putdata(1);
-            break;
-         case 2:
-            /* BLUE Ball */
-            running_total = upperTrigger[i].putdata(-1);
-            break;
-         case 3:
-            /* code */
-            break;
-         
-         default:
-            break;
-      }      
-
-      if((running_total > 5) & (_upperSensorScored[i]!= SensorState::RED)){
-         Serial.print("S");
-         _upperSensorScored[i]= SensorState::RED;
-      } 
+      //Serial.println(upperSensorState[i]);
       
-      if((running_total < -5) & (_upperSensorScored[i]!= SensorState::BLUE)){
-         if(upperSensorState[i] == 2){
-            Serial.print("Y");
+      if(upperDebounceRED[i].calculate((upperSensorState[i] == SensorState::RED))){
+         //Serial.println("Is red");
+         if((upperSensorScored_ONS[i]!= SensorState::RED)){
+            //Serial.println("**********RED**************");
+            Serial.print("S");
+            upperSensorScored_ONS[i]= SensorState::RED;
+            delay(3000);
          }
-         _upperSensorScored[i]=SensorState::BLUE;
-      } 
-
-      if((running_total<=1) & (running_total>=-1)){
-         _upperSensorScored[i] = SensorState::NONE;
-         upperSensorState[i] = SensorState::NONE;
-      }
+      }else if(upperDebounceBLUE[i].calculate((upperSensorState[i] == SensorState::BLUE))){
+         //Serial.println("Is blue");
+         if((upperSensorScored_ONS[i]!= SensorState::BLUE)){
+            //Serial.println("**********BLUE**************");
+            Serial.print("H");
+            upperSensorScored_ONS[i]= SensorState::BLUE;
+            delay(3000);
+         }
+         
+      }else{
+         upperSensorScored_ONS[i]= SensorState::NONE;
+      };      
    }
 
-      running_total = 0;
-   //Loop through upper sensors
-   for(int i=0; i < NUM_LOWER_SENSORS ; i++){
+   //Loop through lower sensors
+   for(int i=0; i <1 ; i++){
       lowerSensorState[i] = getSensorState(lowerSensors[i], leds[i + LOWER_LED_START]);
-
-      switch (lowerSensorState[i]){
-         case 0:
-            /* No Ball */
-            running_total = lowerTrigger[i].putdata(0);
-            break;
-         case 1:
-            /* RED Ball */
-            running_total = lowerTrigger[i].putdata(1);
-            break;
-         case 2:
-            /* BLUE Ball */
-            running_total = lowerTrigger[i].putdata(-1);
-            break;
-         case 3:
-            /* code */
-            break;
-         
-         default:
-            break;
-      }
       
+      //Serial.println(lowerSensorState[i]);
 
-      if((running_total > 5) & (_lowerSensorScored[i]!= SensorState::RED)){
-         Serial.print("S");
-         _lowerSensorScored[i]= SensorState::RED;
-      } 
-      
-      if((running_total < -5) & (_lowerSensorScored[i]!= SensorState::BLUE)){
-         if(lowerSensorState[i] == 2){
-            Serial.print("Y");
+      if(lowerDebounceRED[i].calculate((lowerSensorState[i] == SensorState::RED))){
+         //Serial.println("Is red");
+         if((lowerSensorScored_ONS[i]!= SensorState::RED)){
+           // Serial.println("**********RED**************");
+            Serial.print("S");
+            lowerSensorScored_ONS[i]= SensorState::RED;
+            delay(3000);
          }
-         _lowerSensorScored[i]=SensorState::BLUE;
-      } 
-
-      if((running_total <= 1) & (running_total>=-1)){
-         _lowerSensorScored[i] = SensorState::NONE;
-         lowerSensorState[i] = SensorState::NONE;
-      }
+      }else if(lowerDebounceBLUE[i].calculate((lowerSensorState[i] == SensorState::BLUE))){
+         //Serial.println("Is blue");
+         if((lowerSensorScored_ONS[i]!= SensorState::BLUE)){
+            //Serial.println("**********BLUE**************");
+            Serial.print("H");
+            lowerSensorScored_ONS[i]= SensorState::BLUE;
+            delay(3000);
+         }
+         
+      }else{
+         lowerSensorScored_ONS[i]= SensorState::NONE;
+      };      
    }
 
    //Flip Hartbeat LED
