@@ -178,7 +178,7 @@ void setup() {
       upperSensorState[i] = SensorState::NONE; 
       upperSensorScored_ONS[i] = SensorState::NONE; 
       upperTrigger[i].reset();
-      upperSensors[i].enableLEDs(true);
+      upperSensors[i].enableLEDs(false);
    }   
     
    for(int i=0; i<NUM_LOWER_SENSORS ; i++){
