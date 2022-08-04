@@ -3,7 +3,7 @@
 
 
 #define NUM_LEDS      202
-#define NUM_BLOCK       50
+#define NUM_BLOCK       45
 #define NUM_BLOCK_1_Start 2
 #define NUM_BLOCK_2_Start 52
 #define NUM_BLOCK_2_Start 102
@@ -66,12 +66,16 @@
 #define NUM_UPPER_SENSORS 4
 #define NUM_LOWER_SENSORS 4
 
+#define LOWER_SCALE_LIM 0
+#define UPPER_SCALE_LIM 100
+
 #define SIGN_OF_LIFE_AR 0
 #define SIGN_OF_LIFE_PI 1
 #define UPPER_LED_START 2
 #define LOWER_LED_START 6
 
 boolean EN_CALIBRATE_PLOT = false;
+bool raw = false;
 
 enum SensorState {
                   NONE,
@@ -146,8 +150,8 @@ SensorState getSensorState(GY_31 sensor, CRGB& led){
    SensorState state;
 
    //Get Sensor Color Reading
-   reddata=map(sensor.getRED(),700,75,0,100);
-   bluedata=map(sensor.getBLUE(),700,75,0,100);
+   reddata=map(sensor.getRED(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
+   bluedata=map(sensor.getBLUE(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
 
    // the lower value for easier plotting. Value idiles @ -300
    if(reddata<-10){
@@ -173,7 +177,7 @@ SensorState getSensorState(GY_31 sensor, CRGB& led){
    if(EN_CALIBRATE_PLOT){
       Serial.print(bluedata); 
       Serial.print(","); 
-      Serial.println(reddata);        upperSensorScored_ONS[i]
+      Serial.println(reddata);        
    }; 
 
    return state;
@@ -182,14 +186,14 @@ SensorState getSensorState(GY_31 sensor, CRGB& led){
 //REturn the Sensor State
 SensorState getSensorState(GY_31 sensor){
    SensorState state;
-   bool raw = true;
+   
    //Get Sensor Color Reading
    if(raw){
       reddata=sensor.getRED();
       bluedata=sensor.getBLUE();
    }else{
-      reddata=map(sensor.getRED(),700,75,0,1000);
-      bluedata=map(sensor.getBLUE(),700,75,0,1000);
+      reddata=map(sensor.getRED(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
+      bluedata=map(sensor.getBLUE(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
       // the lower value for easier plotting. Value idiles @ -300
       if(reddata<-10){
          reddata = -10;
@@ -220,17 +224,7 @@ SensorState getSensorState(GY_31 sensor){
    return state;
 }
 
-
-void setup() {
-   //Open a serial port, currently for debugging but will be used for Arduino > RassperyPi > FMS data transfer
-   Serial.begin(9600); 
-
-   boolean Enable_All;
-   if(EN_CALIBRATE_PLOT){
-      Enable_All = false;
-   }else{
-      Enable_All = true;
-   }
+void configerSensorLED(boolean Enable_All){
    //Set sensor state and turn on all LED's
    for(int i=0; i<NUM_UPPER_SENSORS ; i++){
       upperSensorState[i] = SensorState::NONE; 
@@ -246,7 +240,19 @@ void setup() {
       lowerTrigger[i].reset();
       lowerSensors[i].enableLEDs(Enable_All);
    }   
-     
+}
+void setup() {
+   //Open a serial port, currently for debugging but will be used for Arduino > RassperyPi > FMS data transfer
+   Serial.begin(9600); 
+
+   boolean Enable_All;
+   if(EN_CALIBRATE_PLOT){
+      Enable_All = false;
+   }else{
+      Enable_All = true;
+   }
+   //Set sensor state and turn on all LED's
+   configerSensorLED(Enable_All);
     
    //Set up RGB LED strip lights
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
@@ -258,18 +264,9 @@ void Setup_CALIBRATE_PLOT(int incomingByte){
    for(int i=0; i<NUM_LEDS; i++){
       leds[i] = CRGB::Black;
    }
-   for(int i=0; i<NUM_UPPER_SENSORS ; i++){
-         upperSensorState[i] = SensorState::NONE; 
-         upperSensorScored_ONS[i] = SensorState::NONE; 
-         upperTrigger[i].reset();
-         upperSensors[i].enableLEDs(false);
-   }
-   for(int i=0; i<NUM_LOWER_SENSORS ; i++){
-      lowerSensorState[i] = SensorState::NONE; 
-      lowerSensorScored_ONS[i] = SensorState::NONE; 
-      lowerTrigger[i].reset();
-      lowerSensors[i].enableLEDs(false);
-   }  
+
+   configerSensorLED(false); 
+
    if((incomingByte>=0) & (incomingByte<=3)){
       upperSensors[incomingByte].enableLEDs(true);
       Serial.println("Upper");
@@ -282,8 +279,8 @@ void Setup_CALIBRATE_PLOT(int incomingByte){
 }
 
 void fill_Block(int fill, int block, CRGB color){
-   for(int l=fill; l < fill+block ; l++){
-      leds[fill] = color;
+   for(int l=fill; l < (fill+block); l++){
+      leds[l] = color;
     }
 }
 
@@ -323,7 +320,8 @@ void loop(){
          if(int_Calibrate == 9){
             EN_CALIBRATE_PLOT = true;
          }else if(int_Calibrate == 8){
-            EN_CALIBRATE_PLOT = false;            
+            EN_CALIBRATE_PLOT = false; 
+            configerSensorLED(true);           
          }
       }
       if(EN_CALIBRATE_PLOT){
@@ -379,7 +377,8 @@ void loop(){
    }else{
       //Loop through lower sensors
       for(int i=0; i <NUM_LOWER_SENSORS ; i++){
-         lowerSensorState[i] = getSensorState(lowerSensors[i], leds[i + LOWER_LED_START]);
+         //lowerSensorState[i] = getSensorState(lowerSensors[i], leds[i + LOWER_LED_START]);
+         lowerSensorState[i] = getSensorState(lowerSensors[i]);
          
          //Serial.println(lowerSensorState[i]);
 
@@ -405,6 +404,7 @@ void loop(){
          };      
       }
    }
+  
    //Flip Hartbeat LED
    if(currentTime > hartBeatTck){
       hartBeatTck = currentTime + 500;
@@ -429,5 +429,9 @@ void loop(){
    }
 
    FastLED.show();
-   delay(20);
+   
+   //As of 8/4/2022 this program ran at 20ms This assures this is the min
+   while((millis() - currentTime)<20){}
+   
+   //ToDo add warning if over ?ms
 }
