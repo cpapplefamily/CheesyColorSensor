@@ -89,7 +89,7 @@ ColorTrigger upperTrigger[NUM_UPPER_SENSORS];
 ColorTrigger lowerTrigger[NUM_LOWER_SENSORS];
 
 #include "Debouncer.h"
-double debounceTime = 500;
+double debounceTime = 60;
 Debouncer::DebounceType debounceType = Debouncer::DebounceType::kBoth;
 
 Debouncer upperDebounceRED[NUM_UPPER_SENSORS] = {
