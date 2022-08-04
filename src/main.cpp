@@ -173,7 +173,7 @@ SensorState getSensorState(GY_31 sensor, CRGB& led){
    if(EN_CALIBRATE_PLOT){
       Serial.print(bluedata); 
       Serial.print(","); 
-      Serial.println(reddata);        
+      Serial.println(reddata);        upperSensorScored_ONS[i]
    }; 
 
    return state;
@@ -182,22 +182,28 @@ SensorState getSensorState(GY_31 sensor, CRGB& led){
 //REturn the Sensor State
 SensorState getSensorState(GY_31 sensor){
    SensorState state;
-
+   bool raw = true;
    //Get Sensor Color Reading
-   reddata=map(sensor.getRED(),700,75,0,100);
-   bluedata=map(sensor.getBLUE(),700,75,0,100);
-
-   // the lower value for easier plotting. Value idiles @ -300
-   if(reddata<-10){
-      reddata = -10;
+   if(raw){
+      reddata=sensor.getRED();
+      bluedata=sensor.getBLUE();
+   }else{
+      reddata=map(sensor.getRED(),700,75,0,1000);
+      bluedata=map(sensor.getBLUE(),700,75,0,1000);
+      // the lower value for easier plotting. Value idiles @ -300
+      if(reddata<-10){
+         reddata = -10;
+      }
+      if(bluedata<-10){
+       bluedata = -10;
+      }
    }
-   if(bluedata<-10){
-      bluedata = -10;
-   }
+   
+   
 
    //Set some Trigger Threasholds
-   int redThresh = 50;
-   int blueThresh = 50;
+   int redThresh = 85;
+   int blueThresh = 85;
    if((reddata > redThresh) & (reddata > bluedata)){
       state = SensorState::RED;
    }else if((bluedata > blueThresh) & (bluedata > reddata)){
