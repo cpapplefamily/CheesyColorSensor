@@ -2,7 +2,12 @@
 #include "FastLED.h"
 
 
-#define NUM_LEDS      10
+#define NUM_LEDS      202
+#define NUM_BLOCK       50
+#define NUM_BLOCK_1_Start 2
+#define NUM_BLOCK_2_Start 52
+#define NUM_BLOCK_2_Start 102
+#define NUM_BLOCK_4_Start 152
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
 #define DATA_PIN        3
@@ -174,6 +179,41 @@ SensorState getSensorState(GY_31 sensor, CRGB& led){
    return state;
 }
 
+//REturn the Sensor State
+SensorState getSensorState(GY_31 sensor){
+   SensorState state;
+
+   //Get Sensor Color Reading
+   reddata=map(sensor.getRED(),700,75,0,100);
+   bluedata=map(sensor.getBLUE(),700,75,0,100);
+
+   // the lower value for easier plotting. Value idiles @ -300
+   if(reddata<-10){
+      reddata = -10;
+   }
+   if(bluedata<-10){
+      bluedata = -10;
+   }
+
+   //Set some Trigger Threasholds
+   int redThresh = 50;
+   int blueThresh = 50;
+   if((reddata > redThresh) & (reddata > bluedata)){
+      state = SensorState::RED;
+   }else if((bluedata > blueThresh) & (bluedata > reddata)){
+      state = SensorState::BLUE;
+   }else{
+      state = SensorState::NONE;
+   }
+   if(EN_CALIBRATE_PLOT){
+      Serial.print(bluedata); 
+      Serial.print(","); 
+      Serial.println(reddata);        
+   }; 
+
+   return state;
+}
+
 
 void setup() {
    //Open a serial port, currently for debugging but will be used for Arduino > RassperyPi > FMS data transfer
@@ -235,6 +275,11 @@ void Setup_CALIBRATE_PLOT(int incomingByte){
    }
 }
 
+void fill_Block(int fill, int block, CRGB color){
+   for(int l=fill; l < fill+block ; l++){
+      leds[fill] = color;
+    }
+}
 
 /**
  * Main Loop
@@ -283,13 +328,15 @@ void loop(){
 
    if(EN_CALIBRATE_PLOT){
       if((int_Calibrate>=0) & (int_Calibrate<=3)){
-         upperSensorState[int_Calibrate] = getSensorState(upperSensors[int_Calibrate], leds[int_Calibrate + UPPER_LED_START]);
+         //upperSensorState[int_Calibrate] = getSensorState(upperSensors[int_Calibrate], leds[int_Calibrate + UPPER_LED_START]);
+         upperSensorState[int_Calibrate] = getSensorState(upperSensors[int_Calibrate]);
       }   
    }else{
       //Loop through upper sensors
       //for(int i=0; i < 1 ; i++){
       for(int i=0; i < NUM_UPPER_SENSORS ; i++){
-         upperSensorState[i] = getSensorState(upperSensors[i], leds[i + UPPER_LED_START]);
+         //upperSensorState[i] = getSensorState(upperSensors[i], leds[i + UPPER_LED_START]);
+         upperSensorState[i] = getSensorState(upperSensors[i]);
 
          //Serial.println(upperSensorState[i]);
       
@@ -300,6 +347,7 @@ void loop(){
                Serial.print("S");
                upperSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
+               fill_Block(NUM_BLOCK_1_Start+(i*NUM_BLOCK), NUM_BLOCK, CRGB::Red);    
             }
          }else if(upperDebounceBLUE[i].calculate((upperSensorState[i] == SensorState::BLUE))){
             //Serial.println("Is blue");
@@ -308,10 +356,12 @@ void loop(){
                Serial.print("Y");
                upperSensorScored_ONS[i]= SensorState::BLUE;
                //delay(3000);
+               fill_Block(NUM_BLOCK_1_Start+(i*NUM_BLOCK), NUM_BLOCK, CRGB::Blue);     
             }
             
          }else{
             upperSensorScored_ONS[i]= SensorState::NONE;
+            fill_Block(NUM_BLOCK_1_Start+(i*NUM_BLOCK), NUM_BLOCK, CRGB::Black);     
          };   
       }
    }
