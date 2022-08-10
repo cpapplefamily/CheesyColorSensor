@@ -130,17 +130,18 @@ int reddata=0;
 int bluedata=0;   
 
 #include "GY_31.h"
+unsigned long timeout_micros = 20000;// 20000 = 20ms//unsigned long = 1000000UL
 
 GY_31 upperSensors[] = {  
-                     {s2_1, s3_1, out_1, led_EN_1}, 
-                     {s2_2, s3_2, out_2, led_EN_2}, 
-                     {s2_3, s3_3, out_3, led_EN_3}, 
-                     {s2_4, s3_4, out_4, led_EN_4}};
+                     {s2_1, s3_1, out_1, led_EN_1, timeout_micros}, 
+                     {s2_2, s3_2, out_2, led_EN_2, timeout_micros}, 
+                     {s2_3, s3_3, out_3, led_EN_3, timeout_micros}, 
+                     {s2_4, s3_4, out_4, led_EN_4, timeout_micros}};
 GY_31 lowerSensors[] = { 
-                     {s2_5, s3_5, out_5, led_EN_5}, 
-                     {s2_6, s3_6, out_6, led_EN_6}, 
-                     {s2_7, s3_7, out_7, led_EN_7}, 
-                     {s2_8, s3_8, out_8, led_EN_8}};
+                     {s2_5, s3_5, out_5, led_EN_5, timeout_micros}, 
+                     {s2_6, s3_6, out_6, led_EN_6, timeout_micros}, 
+                     {s2_7, s3_7, out_7, led_EN_7, timeout_micros}, 
+                     {s2_8, s3_8, out_8, led_EN_8, timeout_micros}};
 
 CRGBArray<NUM_LEDS> leds;
 
@@ -405,14 +406,21 @@ void loop(){
       }
    }
   
+   CRGB SOL = CRGB::White;
    //Flip Hartbeat LED
+   if((millis() - currentTime)>=25){
+      SOL = CRGB::Red;
+   }else{
+      SOL = CRGB::White;
+   }
+
    if(currentTime > hartBeatTck){
       hartBeatTck = currentTime + 500;
       hartBeat = !hartBeat;
    }
 
    if(hartBeat){
-      leds[SIGN_OF_LIFE_AR] = CRGB::White;
+      leds[SIGN_OF_LIFE_AR] = SOL;
       if(signOfLifePi & !signOfLifePi_ONS){
          leds[SIGN_OF_LIFE_PI] = CRGB::Green;
          signOfLifePi_ACTIVE = true;
