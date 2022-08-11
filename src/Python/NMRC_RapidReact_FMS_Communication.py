@@ -54,7 +54,7 @@ def get_on_ws_open_callback(connection):
                     print('Error: unknown char recieved')
                 #Give Sign of Life
                 print('Info sent to Arduino')
-                connection.write(1)
+                #connection.write("s")
             
 
         thread.start_new_thread(run, ())
