@@ -1,6 +1,12 @@
 #include <Arduino.h>
 #include "FastLED.h"
+#include <Servo.h>
 
+Servo myservo;  // create servo object to control a servo
+
+#define PWM_PIN        2
+int potpin = A0;  // analog pin used to connect the potentiometer
+int val;
 
 #define NUM_LEDS      202
 #define NUM_BLOCK       45
@@ -130,7 +136,7 @@ int reddata=0;
 int bluedata=0;   
 
 #include "GY_31.h"
-unsigned long timeout_micros = 20000;// 20000 = 20ms//unsigned long = 1000000UL
+unsigned long timeout_micros = 20000;// 20000 = 20.00ms//unsigned long = 1000000UL
 
 GY_31 upperSensors[] = {  
                      {s2_1, s3_1, out_1, led_EN_1, timeout_micros}, 
@@ -196,10 +202,11 @@ SensorState getSensorState(GY_31 sensor){
       reddata=map(sensor.getRED(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
       bluedata=map(sensor.getBLUE(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
       // the lower value for easier plotting. Value idiles @ -300
-      if(reddata<-10){
+      // valus above Upper scale limit indicates no sensor
+      if(reddata<-10 | reddata > UPPER_SCALE_LIM){
          reddata = -10;
       }
-      if(bluedata<-10){
+      if(bluedata<-10 | bluedata > UPPER_SCALE_LIM){
        bluedata = -10;
       }
    }
@@ -245,6 +252,8 @@ void configerSensorLED(boolean Enable_All){
 void setup() {
    //Open a serial port, currently for debugging but will be used for Arduino > RassperyPi > FMS data transfer
    Serial.begin(9600); 
+
+   myservo.attach(PWM_PIN);  // attaches the servo on pin 9 to the servo object
 
    boolean Enable_All;
    if(EN_CALIBRATE_PLOT){
@@ -308,6 +317,11 @@ bool signOfLifePi_ONS = false;
 bool signOfLifePi_ACTIVE = false;
 
 void loop(){
+
+   val = analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
+   val = map(val, 0, 1023, 45, 135);     // scale it for use with the servo (value between 0 and 180)
+   myservo.write(val);                  
+
    long int currentTime = millis();
 
    if (Serial.available() > 0) {
