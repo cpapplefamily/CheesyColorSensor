@@ -6,8 +6,8 @@ import time
 import _thread as thread
 import websocket
 
-FMS_IP = "10.0.100.05"
-#FMS_IP = "192.168.1.92"
+#FMS_IP = "10.0.100.05"
+FMS_IP = "192.168.1.187"
 FMS_PORT = "8080"
 FMS_SERVER = FMS_IP + ":" + FMS_PORT
 ALLIANCE_COLOR = 'red' # Change accordingly
@@ -38,6 +38,9 @@ def get_goal_char(connection):
 def get_msg_from_goal_char(goal_char):
     return goal_char_msg_map[goal_char]
 
+def int_to_bytes(x: int) -> bytes:
+    return x.to_bytes((x.bit_length() + 7) // 8, 'big')
+
 def get_on_ws_open_callback(connection):
     def on_ws_open(ws):
         print("Connected to FMS")
@@ -54,7 +57,7 @@ def get_on_ws_open_callback(connection):
                     print('Error: unknown char recieved')
                 #Give Sign of Life
                 print('Info sent to Arduino')
-                #connection.write("s")
+                connection.write(bytes('1', 'utf-8'))
             
 
         thread.start_new_thread(run, ())

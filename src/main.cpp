@@ -252,6 +252,7 @@ void configerSensorLED(boolean Enable_All){
 void setup() {
    //Open a serial port, currently for debugging but will be used for Arduino > RassperyPi > FMS data transfer
    Serial.begin(9600); 
+   Serial.setTimeout(20);
 
    myservo.attach(PWM_PIN);  // attaches the servo on pin 9 to the servo object
 
@@ -316,6 +317,9 @@ bool signOfLifePi = false;
 bool signOfLifePi_ONS = false;
 bool signOfLifePi_ACTIVE = false;
 
+bool test = false;
+int count = 1;
+
 void loop(){
 
    val = analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
@@ -326,12 +330,16 @@ void loop(){
 
    if (Serial.available() > 0) {
       // read the incoming byte:
-      incomingByte = Serial.read();
+      incomingByte = Serial.parseInt();
+      
+      count = count + incomingByte;
+      
+      test = true;
       if(((incomingByte) == '\r' || (incomingByte) == '\n')){
          //Do Nothing
       }else{
          //Convert to int
-         int_Calibrate = incomingByte - '0';
+         int_Calibrate = incomingByte;
          if(int_Calibrate == 9){
             EN_CALIBRATE_PLOT = true;
          }else if(int_Calibrate == 8){
@@ -449,6 +457,14 @@ void loop(){
          leds[SIGN_OF_LIFE_PI] = CRGB::Black;
       }
    }
+
+   if(!test){
+      fill_Block(1,100,CRGB::Green);
+   }else{
+      fill_Block(1,100,CRGB::Red);
+   }
+
+   leds[count +1] = CRGB::White;
 
    FastLED.show();
    
