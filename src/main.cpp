@@ -313,6 +313,26 @@ void fill_Block(int fill, int block, CRGB color){
     }
 }
 
+CRGB setMatchStateLED(int matchState){
+   switch (matchState){
+      case 20: //PreMatch
+         return CRGB::Green;
+         break;
+      case 21 ... 25: //StartMatch
+         return CRGB::Black;
+         break;
+      case 26: // PostMatch
+         return CRGB::Violet;
+         break;
+      case 27 ... 28: // TimeoutActive
+         return CRGB::Black;
+         break;
+      default:
+         return CRGB::Black;
+         break;
+   }
+}
+
 /**
  * Main Loop
  * 
@@ -368,33 +388,7 @@ void loop(){
       signOfLifePi = true;
    }
 
-   switch (matchState_int){
-      case 20:
-         MatchState_LEDs = CRGB::Green;
-         break;
-      case 21:
-         MatchState_LEDs = CRGB::Red;
-         break;
-      case 22:
-         MatchState_LEDs = CRGB::Orange;
-         break;
-      case 23:
-         MatchState_LEDs = CRGB::Yellow;
-         break;
-      case 24:
-         MatchState_LEDs = CRGB::Blue;
-         break;
-      case 25:
-         MatchState_LEDs = CRGB::White;
-         break;
-      case 26:
-         MatchState_LEDs = CRGB::Violet;
-         break;
-    
-      default:
-         MatchState_LEDs = CRGB::Black;
-         break;
-   }
+   MatchState_LEDs = setMatchStateLED(matchState_int);
 
    if(EN_CALIBRATE_PLOT){
       if((int_Calibrate>=0) & (int_Calibrate<=3)){

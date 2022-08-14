@@ -5,6 +5,7 @@ import requests
 import time
 import _thread as thread
 import websocket
+import json
 
 FMS_IP = "10.0.100.05"
 #FMS_IP = "192.168.1.187"
@@ -14,6 +15,9 @@ ALLIANCE_COLOR = 'red' # Change accordingly
 #ALLIANCE_COLOR = 'blue' # Change accordingly
 USERNAME = 'admin'
 PASSWORD = 'ProliantDL160'
+
+curent_matchState = '9'
+last_matchState = '0'
 
 goal_char_msg_map = {
     "S": '{ "type": "RU" }',
@@ -44,8 +48,11 @@ def find_arduino_port():
 
 # Retur na char recieved from arduino
 def get_goal_char(connection):
-    connection.reset_input_buffer()
-    goal_char = connection.read(1).decode('UTF-8')
+    #connection.reset_input_buffer()
+    if (connection.inWaiting() > 0):
+        goal_char = connection.read(1).decode('UTF-8')
+    else:
+        goal_char = "0"
     return goal_char
 
 def get_msg_from_goal_char(goal_char):
@@ -62,28 +69,60 @@ def get_on_ws_open_callback(connection):
         print("Connected to FMS")
 
         def run(*args):
+            global curent_matchState
+            global last_matchState
             while(True):
                 goal_char = get_goal_char(connection)
-                print(f'Info: recieved "{goal_char}"')
+                if(goal_char != "0"):
+                    print(f'Info: recieved "{goal_char}"')
 
-                if (goal_char in goal_char_msg_map):
-                    print(f'Info: sent {get_msg_from_goal_char(goal_char)}')
-                    ws.send(get_msg_from_goal_char(goal_char))
+                    if (goal_char in goal_char_msg_map):
+                        print(f'Info: sent {get_msg_from_goal_char(goal_char)}')
+                        ws.send(get_msg_from_goal_char(goal_char))
+                    else:
+                        print('Error: unknown char recieved')
+                    #Give Sign of Life
                 else:
-                    print('Error: unknown char recieved')
-                #Give Sign of Life
-                matchState = "0"
-                if (matchState in matchState_char_msg_map):
-                    print(f'Info: sent to Arduino {get_msg_from_MatchStat_char(matchState)}')
-                    connection.write(bytes(get_msg_from_MatchStat_char(matchState), 'utf-8'))
-                else:
-                    print('MatchState Error')
+                    if(curent_matchState != last_matchState):
+                        print('MatchState Changed')
+
+                        if (curent_matchState in matchState_char_msg_map):
+                            print(f'Info: sent to Arduino {get_msg_from_MatchStat_char(curent_matchState)}')
+                            connection.write(bytes(get_msg_from_MatchStat_char(curent_matchState), 'utf-8'))
+                        else:
+                            print('MatchState Error')
+                        last_matchState = curent_matchState
             
 
         thread.start_new_thread(run, ())
     
     return on_ws_open
-    
+
+def on_message(ws, message):
+    global curent_matchState
+    global last_matchState
+    # and returns dict.
+    data = json.loads(message)
+
+    print("JSON string = ", data)
+    print()
+
+    if(data['type'] == 'ping'):
+        print('is ping')
+        print("Curent MatchState: %s" % (curent_matchState))
+        print("Last MatchState: %s" % (last_matchState))
+        last_matchState = '9'
+
+    if(data['type'] == 'matchTime'):
+        print('is matchTime')
+        curent_matchState = str(data['data']['MatchState'])
+        print(curent_matchState)
+
+    if(data['type'] == 'realtimeScore'):
+        print('is realtimeScore')
+        curent_matchState = str(data['data']['MatchState'])
+        print("Curent MatchState: %s" % (curent_matchState))
+
 def open_websocket(serial_connection):
     def reopen_websocket():
         open_websocket(serial_connection)
@@ -95,6 +134,7 @@ def open_websocket(serial_connection):
 
     ws = websocket.WebSocketApp(f'ws://{FMS_SERVER}/panels/scoring/{ALLIANCE_COLOR}/websocket'
         , on_open=get_on_ws_open_callback(serial_connection)
+        , on_message=on_message
         , on_close=reopen_websocket
         , cookie="; ".join(["%s=%s" %(i, j) for i, j in res.cookies.get_dict().items()])
     )
