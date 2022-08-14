@@ -6,8 +6,8 @@ import time
 import _thread as thread
 import websocket
 
-#FMS_IP = "10.0.100.05"
-FMS_IP = "192.168.1.187"
+FMS_IP = "10.0.100.05"
+#FMS_IP = "192.168.1.187"
 FMS_PORT = "8080"
 FMS_SERVER = FMS_IP + ":" + FMS_PORT
 ALLIANCE_COLOR = 'red' # Change accordingly
@@ -20,6 +20,19 @@ goal_char_msg_map = {
     "X": '{ "type": "RL" }',
     "Y": '{ "type": "BU" }',
     "H": '{ "type": "BL" }'
+}
+
+matchState_char_msg_map = {
+    "0": '20',
+    "1": '21',
+    "2": '22',
+    "3": '23',
+    "4": '24',
+    "5": '25',
+    "6": '26',
+    "7": '27',
+    "8": '28',
+    "9": '29'
 }
 
 # Return the first arduino mega connected to PC
@@ -37,6 +50,9 @@ def get_goal_char(connection):
 
 def get_msg_from_goal_char(goal_char):
     return goal_char_msg_map[goal_char]
+
+def get_msg_from_MatchStat_char(MatchStat_char):
+    return matchState_char_msg_map[MatchStat_char]
 
 def int_to_bytes(x: int) -> bytes:
     return x.to_bytes((x.bit_length() + 7) // 8, 'big')
@@ -56,8 +72,12 @@ def get_on_ws_open_callback(connection):
                 else:
                     print('Error: unknown char recieved')
                 #Give Sign of Life
-                print('Info sent to Arduino')
-                connection.write(bytes('1', 'utf-8'))
+                matchState = "0"
+                if (matchState in matchState_char_msg_map):
+                    print(f'Info: sent to Arduino {get_msg_from_MatchStat_char(matchState)}')
+                    connection.write(bytes(get_msg_from_MatchStat_char(matchState), 'utf-8'))
+                else:
+                    print('MatchState Error')
             
 
         thread.start_new_thread(run, ())

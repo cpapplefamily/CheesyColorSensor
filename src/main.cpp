@@ -89,6 +89,24 @@ enum SensorState {
                   BLUE,
                   GREEN
                   };
+
+enum MatchState {
+               PreMatch,         // 20
+               StartMatch,       // 21
+               WarmupPeriod,     // 22
+               AutoPeriod,       // 23
+               PausePeriod,      // 24
+               TeleopPeriod,     // 25
+               PostMatch,        // 26
+               TimeoutActive,    // 27
+               PostTimeout,      // 28
+               None              // 29
+               };
+
+CRGB MatchState_LEDs = CRGB::Black;
+MatchState ms = MatchState::None;
+int matchState_int = 0; //Not set
+
 //Eight storage location for the sensor States
 SensorState upperSensorState[NUM_UPPER_SENSORS];
 SensorState upperSensorScored_ONS[NUM_UPPER_SENSORS];
@@ -178,7 +196,7 @@ SensorState getSensorState(GY_31 sensor, CRGB& led){
       led = CRGB::Blue;
       state = SensorState::BLUE;
    }else{
-      led = CRGB::Black;
+      led = MatchState_LEDs;
       state = SensorState::NONE;
    }
    if(EN_CALIBRATE_PLOT){
@@ -317,8 +335,6 @@ bool signOfLifePi = false;
 bool signOfLifePi_ONS = false;
 bool signOfLifePi_ACTIVE = false;
 
-bool test = false;
-int count = 1;
 
 void loop(){
 
@@ -332,9 +348,7 @@ void loop(){
       // read the incoming byte:
       incomingByte = Serial.parseInt();
       
-      count = count + incomingByte;
-      
-      test = true;
+   
       if(((incomingByte) == '\r' || (incomingByte) == '\n')){
          //Do Nothing
       }else{
@@ -346,11 +360,40 @@ void loop(){
             EN_CALIBRATE_PLOT = false; 
             configerSensorLED(true);           
          }
+         matchState_int = incomingByte;
       }
       if(EN_CALIBRATE_PLOT){
          Setup_CALIBRATE_PLOT(int_Calibrate);
       }
       signOfLifePi = true;
+   }
+
+   switch (matchState_int){
+      case 20:
+         MatchState_LEDs = CRGB::Green;
+         break;
+      case 21:
+         MatchState_LEDs = CRGB::Red;
+         break;
+      case 22:
+         MatchState_LEDs = CRGB::Orange;
+         break;
+      case 23:
+         MatchState_LEDs = CRGB::Yellow;
+         break;
+      case 24:
+         MatchState_LEDs = CRGB::Blue;
+         break;
+      case 25:
+         MatchState_LEDs = CRGB::White;
+         break;
+      case 26:
+         MatchState_LEDs = CRGB::Violet;
+         break;
+    
+      default:
+         MatchState_LEDs = CRGB::Black;
+         break;
    }
 
    if(EN_CALIBRATE_PLOT){
@@ -388,7 +431,7 @@ void loop(){
             
          }else{
             upperSensorScored_ONS[i]= SensorState::NONE;
-            fill_Block(NUM_BLOCK_1_Start+(i*NUM_BLOCK), NUM_BLOCK, CRGB::Black);     
+            fill_Block(NUM_BLOCK_1_Start+(i*NUM_BLOCK), NUM_BLOCK, MatchState_LEDs);     
          };   
       }
    }
@@ -457,14 +500,6 @@ void loop(){
          leds[SIGN_OF_LIFE_PI] = CRGB::Black;
       }
    }
-
-   if(!test){
-      fill_Block(1,100,CRGB::Green);
-   }else{
-      fill_Block(1,100,CRGB::Red);
-   }
-
-   leds[count +1] = CRGB::White;
 
    FastLED.show();
    
