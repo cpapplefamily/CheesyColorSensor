@@ -333,6 +333,16 @@ CRGB setMatchStateLED(int matchState){
    }
 }
 
+void run_Agitator(boolean run){
+   if(run){
+      val = analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
+      val = map(val, 0, 1023, 45, 135);     // scale it for use with the servo (value between 0 and 180)
+   }else{
+      val = 90;
+   }
+   myservo.write(val);   
+}
+
 /**
  * Main Loop
  * 
@@ -358,9 +368,7 @@ bool signOfLifePi_ACTIVE = false;
 
 void loop(){
 
-   val = analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
-   val = map(val, 0, 1023, 45, 135);     // scale it for use with the servo (value between 0 and 180)
-   myservo.write(val);                  
+                  
 
    long int currentTime = millis();
 
@@ -389,6 +397,12 @@ void loop(){
    }
 
    MatchState_LEDs = setMatchStateLED(matchState_int);
+
+   if(matchState_int>20 & matchState_int<26){
+      run_Agitator(true);
+   }else{
+      run_Agitator(false);
+   }
 
    if(EN_CALIBRATE_PLOT){
       if((int_Calibrate>=0) & (int_Calibrate<=3)){
