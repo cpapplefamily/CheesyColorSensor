@@ -1,10 +1,13 @@
 #include <Arduino.h>
 #include "FastLED.h"
-#include <Servo.h>
+//#include <Servo.h>
+#include <Adafruit_TiCoServo.h>
 
-Servo myservo;  // create servo object to control a servo
 
-#define PWM_PIN        2
+//Servo myservo;  // create servo object to control a servo
+Adafruit_TiCoServo myservo;  // create servo object to control a servo
+
+#define PWM_PIN        12
 int potpin = A0;  // analog pin used to connect the potentiometer
 int val;
 
@@ -16,7 +19,7 @@ int val;
 #define NUM_BLOCK_4_Start 152
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
-#define DATA_PIN        3
+#define DATA_PIN        13
 //#define CLK_PIN       4
 #define VOLTS          5
 #define MAX_MA       1000
@@ -105,7 +108,7 @@ enum MatchState {
 
 CRGB MatchState_LEDs = CRGB::Black;
 MatchState ms = MatchState::None;
-int matchState_int = 0; //Not set
+int matchState_int; //Not set
 
 //Eight storage location for the sensor States
 SensorState upperSensorState[NUM_UPPER_SENSORS];
@@ -272,7 +275,7 @@ void setup() {
    Serial.begin(9600); 
    Serial.setTimeout(20);
 
-   myservo.attach(PWM_PIN);  // attaches the servo on pin 9 to the servo object
+   myservo.attach(PWM_PIN);  // attaches the servo on pin 2 to the servo object
 
    boolean Enable_All;
    if(EN_CALIBRATE_PLOT){
@@ -282,6 +285,8 @@ void setup() {
    }
    //Set sensor state and turn on all LED's
    configerSensorLED(Enable_All);
+
+   matchState_int = 99;
     
    //Set up RGB LED strip lights
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
@@ -365,10 +370,9 @@ bool signOfLifePi = false;
 bool signOfLifePi_ONS = false;
 bool signOfLifePi_ACTIVE = false;
 
-
 void loop(){
 
-                  
+               
 
    long int currentTime = millis();
 
@@ -388,7 +392,10 @@ void loop(){
             EN_CALIBRATE_PLOT = false; 
             configerSensorLED(true);           
          }
-         matchState_int = incomingByte;
+         if((incomingByte) >= 20 & (incomingByte <= 29)){
+            matchState_int = incomingByte;
+         }
+
       }
       if(EN_CALIBRATE_PLOT){
          Setup_CALIBRATE_PLOT(int_Calibrate);
@@ -398,8 +405,10 @@ void loop(){
 
    MatchState_LEDs = setMatchStateLED(matchState_int);
 
+   
+
    if(matchState_int>20 & matchState_int<26){
-      run_Agitator(true);
+         run_Agitator(true);
    }else{
       run_Agitator(false);
    }
@@ -508,7 +517,8 @@ void loop(){
          leds[SIGN_OF_LIFE_PI] = CRGB::Black;
       }
    }
-
+   
+leds[matchState_int-18] = CRGB::White;
    FastLED.show();
    
    //As of 8/4/2022 this program ran at 20ms This assures this is the min
@@ -516,3 +526,4 @@ void loop(){
    
    //ToDo add warning if over ?ms
 }
+

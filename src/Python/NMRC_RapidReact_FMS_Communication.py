@@ -18,6 +18,7 @@ PASSWORD = 'ProliantDL160'
 
 curent_matchState = '9'
 last_matchState = '0'
+en_Print = False
 
 goal_char_msg_map = {
     "S": '{ "type": "RU" }',
@@ -101,27 +102,31 @@ def get_on_ws_open_callback(connection):
 def on_message(ws, message):
     global curent_matchState
     global last_matchState
+    global en_Print
     # and returns dict.
     data = json.loads(message)
-
-    print("JSON string = ", data)
-    print()
+    if(en_Print):
+        print("JSON string = ", data)
+        print()
 
     if(data['type'] == 'ping'):
-        print('is ping')
-        print("Curent MatchState: %s" % (curent_matchState))
-        print("Last MatchState: %s" % (last_matchState))
+        if(en_Print):
+            print('is ping')
+            print("Curent MatchState: %s" % (curent_matchState))
+            print("Last MatchState: %s" % (last_matchState))
         last_matchState = '9'
 
     if(data['type'] == 'matchTime'):
-        print('is matchTime')
         curent_matchState = str(data['data']['MatchState'])
-        print(curent_matchState)
+        if(en_Print):
+            print('is matchTime')
+            print(curent_matchState)
 
     if(data['type'] == 'realtimeScore'):
-        print('is realtimeScore')
         curent_matchState = str(data['data']['MatchState'])
-        print("Curent MatchState: %s" % (curent_matchState))
+        if(en_Print):
+            print('is realtimeScore')
+            print("Curent MatchState: %s" % (curent_matchState))
 
 def open_websocket(serial_connection):
     def reopen_websocket():
