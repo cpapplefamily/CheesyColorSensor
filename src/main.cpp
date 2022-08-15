@@ -13,65 +13,65 @@ int val;
 
 //LEDs start at count 0
 #define NUM_LEDS      202
-#define NUM_UPPER_BLOCK_LEN      45
 #define NUM_UPPER_BLOCK_START 2
+#define NUM_UPPER_BLOCK_LEN   45
 #define NUM_LOWER_BLOCK_START 191
-#define NUM_LOWER_BLOCK_LEN 1
+#define NUM_LOWER_BLOCK_LEN   1
 
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
 #define DATA_PIN        3
 //#define CLK_PIN       4
-#define VOLTS          5
+#define VOLTS           5
 #define MAX_MA       1000
 
 //Sensor 1
-#define led_EN_1 8
-#define s2_1 10
-#define s3_1 9
-#define out_1 11
+#define led_EN_1  8
+#define s2_1      10
+#define s3_1      9
+#define out_1     11
 
 //Sensor 2
-#define led_EN_2 4
-#define s2_2 6
-#define s3_2 5
-#define out_2 7
+#define led_EN_2  4
+#define s2_2      6
+#define s3_2      5
+#define out_2     7
 
 //Sensor 3
-#define led_EN_3 17
-#define s2_3 15
-#define s3_3 16
-#define out_3 14
+#define led_EN_3  17
+#define s2_3      15
+#define s3_3      16
+#define out_3     14
 
 //Sensor 4
-#define led_EN_4 21
-#define s2_4 19
-#define s3_4 20
-#define out_4 18
+#define led_EN_4  21
+#define s2_4      19
+#define s3_4      20
+#define out_4     18
 
 //Sensor 5
-#define led_EN_5 29
-#define s2_5 27
-#define s3_5 28
-#define out_5 26
+#define led_EN_5  29
+#define s2_5      27
+#define s3_5      28
+#define out_5     26
 
 //Sensor 6
-#define led_EN_6 33
-#define s2_6 31
-#define s3_6 32
-#define out_6 30
+#define led_EN_6  33
+#define s2_6      31
+#define s3_6      32
+#define out_6     30
 
 //Sensor 7
-#define led_EN_7 37
-#define s2_7 35
-#define s3_7 36
-#define out_7 34
+#define led_EN_7  37
+#define s2_7      35
+#define s3_7      36
+#define out_7     34
 
 //Sensor 8
-#define led_EN_8 41
-#define s2_8 39
-#define s3_8 40
-#define out_8 38
+#define led_EN_8  41
+#define s2_8      39
+#define s3_8      40
+#define out_8     38
 
 #define NUM_UPPER_SENSORS 4
 #define NUM_LOWER_SENSORS 4
@@ -81,11 +81,10 @@ int val;
 
 #define SIGN_OF_LIFE_AR 0
 #define SIGN_OF_LIFE_PI 1
-#define UPPER_LED_START 2
-#define LOWER_LED_START 6
+
 
 boolean EN_CALIBRATE_PLOT = false;
-bool raw = false;
+bool plot_raw_data = false;
 
 enum SensorState {
                   NONE,
@@ -108,7 +107,6 @@ enum MatchState {
                };
 
 CRGB MatchState_LEDs = CRGB::Black;
-MatchState ms = MatchState::None;
 int matchState_int; //Not set
 
 //Eight storage location for the sensor States
@@ -117,43 +115,44 @@ SensorState upperSensorScored_ONS[NUM_UPPER_SENSORS];
 SensorState lowerSensorState[NUM_LOWER_SENSORS];
 SensorState lowerSensorScored_ONS[NUM_LOWER_SENSORS];
 
-//int upperFilter[NUM_UPPER_SENSORS][10];
-//int lowerFilter[NUM_LOWER_SENSORS][10];
-
 #include "ColorTrigger.h"
 
 ColorTrigger upperTrigger[NUM_UPPER_SENSORS];
 ColorTrigger lowerTrigger[NUM_LOWER_SENSORS];
 
 #include "Debouncer.h"
-double debounceTime = 60;
+double debounceTime_RED = 60;  //Sensor must be on or off
+double debounceTime_BLUE = 60;  //Sensor must be on or off
 Debouncer::DebounceType debounceType = Debouncer::DebounceType::kBoth;
 
 Debouncer upperDebounceRED[NUM_UPPER_SENSORS] = {
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}
+                                             {debounceTime_RED, debounceType}, 
+                                             {debounceTime_RED, debounceType}, 
+                                             {debounceTime_RED, debounceType}, 
+                                             {debounceTime_RED, debounceType}
                                              };
 Debouncer upperDebounceBLUE[NUM_UPPER_SENSORS] = {
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}
+                                             {debounceTime_BLUE, debounceType}, 
+                                             {debounceTime_BLUE, debounceType}, 
+                                             {debounceTime_BLUE, debounceType}, 
+                                             {debounceTime_BLUE, debounceType}
                                              };
 Debouncer lowerDebounceRED[NUM_LOWER_SENSORS] = {
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}
+                                             {debounceTime_RED, debounceType}, 
+                                             {debounceTime_RED, debounceType}, 
+                                             {debounceTime_RED, debounceType}, 
+                                             {debounceTime_RED, debounceType}
                                              };
 Debouncer lowerDebounceBLUE[NUM_LOWER_SENSORS] = {
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}
+                                             {debounceTime_BLUE, debounceType}, 
+                                             {debounceTime_BLUE, debounceType}, 
+                                             {debounceTime_BLUE, debounceType}, 
+                                             {debounceTime_BLUE, debounceType}
                                              };
 
+//**********************//
+// Set Up Color sensors //
+//**********************//
 int reddata=0;        
 int bluedata=0;   
 
@@ -171,6 +170,9 @@ GY_31 lowerSensors[] = {
                      {s2_7, s3_7, out_7, led_EN_7, timeout_micros}, 
                      {s2_8, s3_8, out_8, led_EN_8, timeout_micros}};
 
+//**********************//
+// Set Up led strip     //
+//**********************//
 CRGBArray<NUM_LEDS> leds;
 
 
@@ -183,7 +185,7 @@ SensorState getSensorState(GY_31 sensor){
    SensorState state;
    
    //Get Sensor Color Reading
-   if(raw){
+   if(plot_raw_data){
       reddata=sensor.getRED();
       bluedata=sensor.getBLUE();
    }else{
@@ -336,9 +338,6 @@ bool signOfLifePi = false;
 bool signOfLifePi_State = false;
 
 void loop(){
-
-               
-
    long int currentTime = millis();
 
    if (Serial.available() > 0) {
@@ -350,7 +349,7 @@ void loop(){
       if(((incomingByte) == '\r' || (incomingByte) == '\n')){
          //Do Nothing
       }else{
-         //Convert to int
+         //store incomingByte
          int_Calibrate = incomingByte;
          if(int_Calibrate == 9){
             EN_CALIBRATE_PLOT = true;
@@ -366,13 +365,12 @@ void loop(){
       if(EN_CALIBRATE_PLOT){
          Setup_CALIBRATE_PLOT(int_Calibrate);
       }
-      signOfLifePi = true;
    }
 
+   //set the led backgound color
    MatchState_LEDs = setMatchStateLED(matchState_int);
 
-   
-
+   // Run Agitator if match running
    if(matchState_int>20 & matchState_int<26){
          run_Agitator(true);
    }else{
@@ -381,24 +379,22 @@ void loop(){
 
    if(EN_CALIBRATE_PLOT){
       if((int_Calibrate>=0) & (int_Calibrate<=3)){
-         //upperSensorState[int_Calibrate] = getSensorState(upperSensors[int_Calibrate], leds[int_Calibrate + UPPER_LED_START]);
-         
          upperSensorState[int_Calibrate] = getSensorState(upperSensors[int_Calibrate]);
-   
       }   
    }else{
       //Loop through upper sensors
-      //for(int i=0; i < 1 ; i++){
       for(int i=0; i < NUM_UPPER_SENSORS ; i++){
-         //upperSensorState[i] = getSensorState(upperSensors[i], leds[i + UPPER_LED_START]);
-         long int startsence = micros();
+
+         long int startsence = micros();  //For Time diagnostics
+
          upperSensorState[i] = getSensorState(upperSensors[i]);
+
          boolean printSensor_time = false;
          if((i == 3) & (printSensor_time)){ 
             Serial.print("Sensor 3 ");
-            Serial.println(micros() - startsence);
+            Serial.print(micros() - startsence);
+            Serial.println(" us");
          }
-         //Serial.println(upperSensorState[i]);
       
          if(upperDebounceRED[i].calculate((upperSensorState[i] == SensorState::RED))){
             //Serial.println("Is red");
@@ -428,16 +424,12 @@ void loop(){
 
    if(EN_CALIBRATE_PLOT){
       if((int_Calibrate>=4) & (int_Calibrate<=7)){
-         //lowerSensorState[int_Calibrate - 4] = getSensorState(lowerSensors[int_Calibrate - 4], leds[int_Calibrate - 4 + LOWER_LED_START]);
          lowerSensorState[int_Calibrate - 4] = getSensorState(lowerSensors[int_Calibrate - 4]);
       }   
    }else{
       //Loop through lower sensors
       for(int i=0; i <NUM_LOWER_SENSORS ; i++){
-         //lowerSensorState[i] = getSensorState(lowerSensors[i], leds[i + LOWER_LED_START]);
          lowerSensorState[i] = getSensorState(lowerSensors[i]);
-         
-         //Serial.println(lowerSensorState[i]);
 
          if(lowerDebounceRED[i].calculate((lowerSensorState[i] == SensorState::RED))){
             //Serial.println("Is red");
@@ -465,10 +457,14 @@ void loop(){
       }
    }
   
+   //Sing Of Life Arduino
    CRGB SOL = CRGB::White;
-   //Flip Hartbeat LED
-   if((millis() - currentTime)>=50){
+   long int now = millis();
+   //Hartbeat LED Color
+   if((now - currentTime)>=50){
       SOL = CRGB::Red;
+   }else if ((now - currentTime)>=25){
+      SOL = CRGB::Yellow;
    }else{
       SOL = CRGB::White;
    }
@@ -484,6 +480,7 @@ void loop(){
       leds[SIGN_OF_LIFE_AR] = CRGB::Black;
    }
 
+   //Sing Of Life Raspberry Pi
    if(signOfLifePi){
       signOfLifePi_State = !signOfLifePi_State;
       signOfLifePi = false;
@@ -495,7 +492,9 @@ void loop(){
       leds[SIGN_OF_LIFE_PI] = CRGB::Black;
    }
    
+   //Tag Lower Sensor Start Location
    leds[NUM_LOWER_BLOCK_START - 1] = CRGB::Yellow;
+
    // Show Match state on LEDs 3-10
    leds[matchState_int-18] = CRGB::White;
    FastLED.show();

@@ -18,7 +18,7 @@ PASSWORD = 'ProliantDL160'
 
 curent_matchState = '9'
 last_matchState = '0'
-en_Print = False
+en_Serial_Print = False
 
 goal_char_msg_map = {
     "S": '{ "type": "RU" }',
@@ -47,25 +47,25 @@ def find_arduino_port():
         if 'VID:PID=10C4:EA60' in port.hwid:   
             return port.device
 
-# Retur na char recieved from arduino
-def get_goal_char(connection):
-    #connection.reset_input_buffer()
-    if (connection.inWaiting() > 0):
-        goal_char = connection.read(1).decode('UTF-8')
+# Retur char recieved from arduino
+def get_serial_char(usb_connection):
+    #connection.reset_input_buffer() // Removed for none Blocking
+    if (usb_connection.inWaiting() > 0):
+        _char = usb_connection.read(1).decode('UTF-8')
     else:
-        goal_char = "0"
-    return goal_char
+        _char = ""
+    return _char
 
 def get_msg_from_goal_char(goal_char):
     return goal_char_msg_map[goal_char]
 
-def get_msg_from_MatchStat_char(MatchStat_char):
+def get_msg_from_MatchState_char(MatchStat_char):
     return matchState_char_msg_map[MatchStat_char]
 
 def int_to_bytes(x: int) -> bytes:
     return x.to_bytes((x.bit_length() + 7) // 8, 'big')
 
-def get_on_ws_open_callback(connection):
+def get_on_ws_open_callback(usb_connection):
     def on_ws_open(ws):
         print("Connected to FMS")
 
@@ -73,8 +73,8 @@ def get_on_ws_open_callback(connection):
             global curent_matchState
             global last_matchState
             while(True):
-                goal_char = get_goal_char(connection)
-                if(goal_char != "0"):
+                goal_char = get_serial_char(usb_connection)
+                if(goal_char != ""):
                     print(f'Info: recieved "{goal_char}"')
 
                     if (goal_char in goal_char_msg_map):
@@ -86,10 +86,9 @@ def get_on_ws_open_callback(connection):
                 else:
                     if(curent_matchState != last_matchState):
                         print('MatchState Changed')
-
                         if (curent_matchState in matchState_char_msg_map):
-                            print(f'Info: sent to Arduino {get_msg_from_MatchStat_char(curent_matchState)}')
-                            connection.write(bytes(get_msg_from_MatchStat_char(curent_matchState), 'utf-8'))
+                            print(f'Info: sent to Arduino {get_msg_from_MatchState_char(curent_matchState)}')
+                            usb_connection.write(bytes(get_msg_from_MatchState_char(curent_matchState), 'utf-8'))
                         else:
                             print('MatchState Error')
                         last_matchState = curent_matchState
@@ -102,15 +101,15 @@ def get_on_ws_open_callback(connection):
 def on_message(ws, message):
     global curent_matchState
     global last_matchState
-    global en_Print
+    global en_Serial_Print
     # and returns dict.
     data = json.loads(message)
-    if(en_Print):
+    if(en_Serial_Print):
         print("JSON string = ", data)
         print()
 
     if(data['type'] == 'ping'):
-        if(en_Print):
+        if(en_Serial_Print):
             print('is ping')
             print("Curent MatchState: %s" % (curent_matchState))
             print("Last MatchState: %s" % (last_matchState))
@@ -118,13 +117,13 @@ def on_message(ws, message):
 
     if(data['type'] == 'matchTime'):
         curent_matchState = str(data['data']['MatchState'])
-        if(en_Print):
+        if(en_Serial_Print):
             print('is matchTime')
             print(curent_matchState)
 
     if(data['type'] == 'realtimeScore'):
         curent_matchState = str(data['data']['MatchState'])
-        if(en_Print):
+        if(en_Serial_Print):
             print('is realtimeScore')
             print("Curent MatchState: %s" % (curent_matchState))
 
@@ -148,11 +147,14 @@ def open_websocket(serial_connection):
 
 def main():
     
+    """Loops until a connection is made to the Arduino.
+    When connected advances to check for Area
+    """
     while(True):
         print('Find arduino')
-        connection = serial.Serial(find_arduino_port(), 9600)
+        usb_connection = serial.Serial(find_arduino_port(), 9600)
 
-        if (connection.is_open):
+        if (usb_connection.is_open):
             print("Connected to arduino")
             break
         time.sleep(2)
@@ -171,6 +173,6 @@ def main():
         if(response == 0): break
         time.sleep(2)
         
-    open_websocket(connection)
+    open_websocket(usb_connection)
 
 main()
