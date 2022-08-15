@@ -7,7 +7,7 @@
 //Servo myservo;  // create servo object to control a servo
 Adafruit_TiCoServo myservo;  // create servo object to control a servo
 
-#define PWM_PIN        12
+#define PWM_PIN        2
 int potpin = A0;  // analog pin used to connect the potentiometer
 int val;
 
@@ -19,7 +19,7 @@ int val;
 #define NUM_BLOCK_4_Start 152
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
-#define DATA_PIN        13
+#define DATA_PIN        3
 //#define CLK_PIN       4
 #define VOLTS          5
 #define MAX_MA       1000
