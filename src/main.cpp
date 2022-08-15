@@ -11,12 +11,13 @@ Adafruit_TiCoServo myservo;  // create servo object to control a servo
 int potpin = A0;  // analog pin used to connect the potentiometer
 int val;
 
+//LEDs start at count 0
 #define NUM_LEDS      202
-#define NUM_BLOCK       45
-#define NUM_BLOCK_1_Start 2
-#define NUM_BLOCK_2_Start 52
-#define NUM_BLOCK_2_Start 102
-#define NUM_BLOCK_4_Start 152
+#define NUM_UPPER_BLOCK_LEN      45
+#define NUM_UPPER_BLOCK_START 2
+#define NUM_LOWER_BLOCK_START 191
+#define NUM_LOWER_BLOCK_LEN 1
+
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
 #define DATA_PIN        3
@@ -157,7 +158,7 @@ int reddata=0;
 int bluedata=0;   
 
 #include "GY_31.h"
-unsigned long timeout_micros = 20000;// 20000 = 20.00ms//unsigned long = 1000000UL
+unsigned long timeout_micros = 2000;// 2000 = 2.00ms//unsigned long = 1000000UL
 
 GY_31 upperSensors[] = {  
                      {s2_1, s3_1, out_1, led_EN_1, timeout_micros}, 
@@ -174,42 +175,8 @@ CRGBArray<NUM_LEDS> leds;
 
 
 //REturn the Sensor State and set the LED color CGRB byReference
-SensorState getSensorState(GY_31 sensor, CRGB& led){
-   SensorState state;
-
-   //Get Sensor Color Reading
-   reddata=map(sensor.getRED(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
-   bluedata=map(sensor.getBLUE(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
-
-   // the lower value for easier plotting. Value idiles @ -300
-   if(reddata<-10){
-      reddata = -10;
-   }
-   if(bluedata<-10){
-      bluedata = -10;
-   }
-
-   //Set some Trigger Threasholds
-   int redThresh = 50;
-   int blueThresh = 50;
-   if((reddata > redThresh) & (reddata > bluedata)){
-      led = CRGB::Red;
-      state = SensorState::RED;
-   }else if((bluedata > blueThresh) & (bluedata > reddata)){
-      led = CRGB::Blue;
-      state = SensorState::BLUE;
-   }else{
-      led = MatchState_LEDs;
-      state = SensorState::NONE;
-   }
-   if(EN_CALIBRATE_PLOT){
-      Serial.print(bluedata); 
-      Serial.print(","); 
-      Serial.println(reddata);        
-   }; 
-
-   return state;
-}
+//SensorState getSensorState(GY_31 sensor, CRGB& led){
+ 
 
 //REturn the Sensor State
 SensorState getSensorState(GY_31 sensor){
@@ -232,8 +199,6 @@ SensorState getSensorState(GY_31 sensor){
       }
    }
    
-   
-
    //Set some Trigger Threasholds
    int redThresh = 85;
    int blueThresh = 85;
@@ -273,9 +238,10 @@ void configerSensorLED(boolean Enable_All){
 void setup() {
    //Open a serial port, currently for debugging but will be used for Arduino > RassperyPi > FMS data transfer
    Serial.begin(9600); 
+   // Not sure if this is needed anymore. Had something to do with Serial.Read() or maybe is needed for Serial.parseInt()
    Serial.setTimeout(20);
 
-   myservo.attach(PWM_PIN);  // attaches the servo on pin 2 to the servo object
+   myservo.attach(PWM_PIN);  // attaches the servo on PWM_PIN to the servo object
 
    boolean Enable_All;
    if(EN_CALIBRATE_PLOT){
@@ -367,8 +333,7 @@ boolean hartBeat = false;
 int incomingByte = 0; // for incoming serial data
 int int_Calibrate = 0; // for incoming serial data
 bool signOfLifePi = false;
-bool signOfLifePi_ONS = false;
-bool signOfLifePi_ACTIVE = false;
+bool signOfLifePi_State = false;
 
 void loop(){
 
@@ -380,6 +345,7 @@ void loop(){
       // read the incoming byte:
       incomingByte = Serial.parseInt();
       
+      signOfLifePi = true;
    
       if(((incomingByte) == '\r' || (incomingByte) == '\n')){
          //Do Nothing
@@ -416,15 +382,22 @@ void loop(){
    if(EN_CALIBRATE_PLOT){
       if((int_Calibrate>=0) & (int_Calibrate<=3)){
          //upperSensorState[int_Calibrate] = getSensorState(upperSensors[int_Calibrate], leds[int_Calibrate + UPPER_LED_START]);
+         
          upperSensorState[int_Calibrate] = getSensorState(upperSensors[int_Calibrate]);
+   
       }   
    }else{
       //Loop through upper sensors
       //for(int i=0; i < 1 ; i++){
       for(int i=0; i < NUM_UPPER_SENSORS ; i++){
          //upperSensorState[i] = getSensorState(upperSensors[i], leds[i + UPPER_LED_START]);
+         long int startsence = micros();
          upperSensorState[i] = getSensorState(upperSensors[i]);
-
+         boolean printSensor_time = false;
+         if((i == 3) & (printSensor_time)){ 
+            Serial.print("Sensor 3 ");
+            Serial.println(micros() - startsence);
+         }
          //Serial.println(upperSensorState[i]);
       
          if(upperDebounceRED[i].calculate((upperSensorState[i] == SensorState::RED))){
@@ -434,7 +407,7 @@ void loop(){
                Serial.print("S");
                upperSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
-               fill_Block(NUM_BLOCK_1_Start+(i*NUM_BLOCK), NUM_BLOCK, CRGB::Red);    
+               fill_Block(NUM_UPPER_BLOCK_START + (i * NUM_UPPER_BLOCK_LEN), NUM_UPPER_BLOCK_LEN, CRGB::Red);    
             }
          }else if(upperDebounceBLUE[i].calculate((upperSensorState[i] == SensorState::BLUE))){
             //Serial.println("Is blue");
@@ -443,19 +416,20 @@ void loop(){
                Serial.print("Y");
                upperSensorScored_ONS[i]= SensorState::BLUE;
                //delay(3000);
-               fill_Block(NUM_BLOCK_1_Start+(i*NUM_BLOCK), NUM_BLOCK, CRGB::Blue);     
+               fill_Block(NUM_UPPER_BLOCK_START + (i * NUM_UPPER_BLOCK_LEN), NUM_UPPER_BLOCK_LEN, CRGB::Blue);     
             }
             
          }else{
             upperSensorScored_ONS[i]= SensorState::NONE;
-            fill_Block(NUM_BLOCK_1_Start+(i*NUM_BLOCK), NUM_BLOCK, MatchState_LEDs);     
+            fill_Block(NUM_UPPER_BLOCK_START + (i * NUM_UPPER_BLOCK_LEN), NUM_UPPER_BLOCK_LEN, MatchState_LEDs);     
          };   
       }
    }
 
    if(EN_CALIBRATE_PLOT){
       if((int_Calibrate>=4) & (int_Calibrate<=7)){
-         lowerSensorState[int_Calibrate - 4] = getSensorState(lowerSensors[int_Calibrate - 4], leds[int_Calibrate - 4 + LOWER_LED_START]);
+         //lowerSensorState[int_Calibrate - 4] = getSensorState(lowerSensors[int_Calibrate - 4], leds[int_Calibrate - 4 + LOWER_LED_START]);
+         lowerSensorState[int_Calibrate - 4] = getSensorState(lowerSensors[int_Calibrate - 4]);
       }   
    }else{
       //Loop through lower sensors
@@ -472,6 +446,7 @@ void loop(){
                Serial.print("X");
                lowerSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
+               fill_Block(NUM_LOWER_BLOCK_START + (i * NUM_LOWER_BLOCK_LEN), NUM_LOWER_BLOCK_LEN, CRGB::Red);
             }
          }else if(lowerDebounceBLUE[i].calculate((lowerSensorState[i] == SensorState::BLUE))){
             //Serial.println("Is blue");
@@ -480,17 +455,19 @@ void loop(){
                Serial.print("H");
                lowerSensorScored_ONS[i]= SensorState::BLUE;
                //delay(3000);
+               fill_Block(NUM_LOWER_BLOCK_START + (i * NUM_LOWER_BLOCK_LEN), NUM_LOWER_BLOCK_LEN, CRGB::Blue); 
             }
             
          }else{
             lowerSensorScored_ONS[i]= SensorState::NONE;
+            fill_Block(NUM_LOWER_BLOCK_START + (i * NUM_LOWER_BLOCK_LEN), NUM_LOWER_BLOCK_LEN, CRGB::Black);
          };      
       }
    }
   
    CRGB SOL = CRGB::White;
    //Flip Hartbeat LED
-   if((millis() - currentTime)>=25){
+   if((millis() - currentTime)>=50){
       SOL = CRGB::Red;
    }else{
       SOL = CRGB::White;
@@ -503,22 +480,24 @@ void loop(){
 
    if(hartBeat){
       leds[SIGN_OF_LIFE_AR] = SOL;
-      if(signOfLifePi & !signOfLifePi_ONS){
-         leds[SIGN_OF_LIFE_PI] = CRGB::Green;
-         signOfLifePi_ACTIVE = true;
-      }
-      signOfLifePi_ONS = true;
    }else{
       leds[SIGN_OF_LIFE_AR] = CRGB::Black;
-      if(signOfLifePi & signOfLifePi_ACTIVE){
-         signOfLifePi = false;
-         signOfLifePi_ONS = false;
-         signOfLifePi_ACTIVE = false;
-         leds[SIGN_OF_LIFE_PI] = CRGB::Black;
-      }
+   }
+
+   if(signOfLifePi){
+      signOfLifePi_State = !signOfLifePi_State;
+      signOfLifePi = false;
+   }
+
+   if(signOfLifePi_State){
+      leds[SIGN_OF_LIFE_PI] = CRGB::White;
+   }else{
+      leds[SIGN_OF_LIFE_PI] = CRGB::Black;
    }
    
-leds[matchState_int-18] = CRGB::White;
+   leds[NUM_LOWER_BLOCK_START - 1] = CRGB::Yellow;
+   // Show Match state on LEDs 3-10
+   leds[matchState_int-18] = CRGB::White;
    FastLED.show();
    
    //As of 8/4/2022 this program ran at 20ms This assures this is the min
