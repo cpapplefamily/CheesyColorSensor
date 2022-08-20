@@ -84,7 +84,7 @@ int val;
 
 
 boolean EN_CALIBRATE_PLOT = false;
-bool plot_raw_data = false;
+
 
 enum SensorState {
                   NONE,
@@ -157,7 +157,7 @@ int reddata=0;
 int bluedata=0;   
 
 #include "GY_31.h"
-unsigned long timeout_micros = 2000;// 2000 = 2.00ms//unsigned long = 1000000UL
+unsigned long timeout_micros = 5000;// 2000 = 2.00ms//unsigned long = 1000000UL
 
 GY_31 upperSensors[] = {  
                      {s2_1, s3_1, out_1, led_EN_1, timeout_micros}, 
@@ -179,7 +179,7 @@ CRGBArray<NUM_LEDS> leds;
 //REturn the Sensor State and set the LED color CGRB byReference
 //SensorState getSensorState(GY_31 sensor, CRGB& led){
  
-
+bool plot_raw_data = false;
 //REturn the Sensor State
 SensorState getSensorState(GY_31 sensor){
    SensorState state;
@@ -194,16 +194,16 @@ SensorState getSensorState(GY_31 sensor){
       // the lower value for easier plotting. Value idiles @ -300
       // valus above Upper scale limit indicates no sensor
       if(reddata<-10 | reddata > UPPER_SCALE_LIM){
-         reddata = -10;
+         //reddata = -10;
       }
       if(bluedata<-10 | bluedata > UPPER_SCALE_LIM){
-       bluedata = -10;
+       //bluedata = -10;
       }
    }
    
    //Set some Trigger Threasholds
-   int redThresh = 85;
-   int blueThresh = 85;
+   int redThresh = 95;
+   int blueThresh = 90;
    if((reddata > redThresh) & (reddata > bluedata)){
       state = SensorState::RED;
    }else if((bluedata > blueThresh) & (bluedata > reddata)){
