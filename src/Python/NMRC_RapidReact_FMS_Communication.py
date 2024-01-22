@@ -7,8 +7,8 @@ import _thread as thread
 import websocket
 import json
 
-FMS_IP = "10.0.100.05"
-#FMS_IP = "192.168.1.187"
+#FMS_IP = "10.0.100.05"
+FMS_IP = "192.168.1.187"
 FMS_PORT = "8080"
 FMS_SERVER = FMS_IP + ":" + FMS_PORT
 ALLIANCE_COLOR = 'red' # Change accordingly
@@ -16,15 +16,19 @@ ALLIANCE_COLOR = 'red' # Change accordingly
 USERNAME = 'admin'
 PASSWORD = 'ProliantDL160'
 
+cooperationStatus = False
+amplificationCount = 0
+amplificationStatus = False
+ampAccumulatorDisable = False
 curent_matchState = '9'
 last_matchState = '0'
 en_Serial_Print = False
 
 goal_char_msg_map = {
-    "S": '{ "type": "RU" }',
-    "X": '{ "type": "RL" }',
-    "Y": '{ "type": "BU" }',
-    "H": '{ "type": "BL" }'
+    "W": '{ "type": "W" }',
+    "R": '{ "type": "R" }',
+    "P": '{ "type": "amplificationActive" }',
+    "O": '{ "type": "coopertitionStatus" }'
 }
 
 matchState_char_msg_map = {
@@ -38,6 +42,23 @@ matchState_char_msg_map = {
     "7": '27',
     "8": '28',
     "9": '29'
+}
+
+ampState_char_msg_map = {
+    "0": '30',
+    "1": '31',
+    "2": '32'
+}
+
+speakerState_char_msg_map = {
+    "0": '40',
+    "1": '41',
+    "2": '42'
+}
+
+coopState_char_msg_map = {
+    "0": '50',
+    "1": '51'
 }
 
 # Return the first arduino mega connected to PC
@@ -97,11 +118,17 @@ def get_on_ws_open_callback(usb_connection):
         thread.start_new_thread(run, ())
     
     return on_ws_open
-
+                
 def on_message(ws, message):
     global curent_matchState
     global last_matchState
     global en_Serial_Print
+    global cooperationStatus
+    global amplificationCount
+    global amplificationStatus
+    global ampAccumulatorDisable
+    
+    
     # and returns dict.
     data = json.loads(message)
     if(en_Serial_Print):
@@ -123,9 +150,19 @@ def on_message(ws, message):
 
     if(data['type'] == 'realtimeScore'):
         curent_matchState = str(data['data']['MatchState'])
-        if(en_Serial_Print):
-            print('is realtimeScore')
-            print("Curent MatchState: %s" % (curent_matchState))
+        p1 = data['data']['Red']['Score']
+        amplificationCount = p1["AmplificationCount"]
+        cooperationStatus = p1["CoopertitionStatus"]
+        amplificationStatus = p1["AmplificationActive"]
+        ampAccumulatorDisable = p1["AmpAccumulatorDisable"]
+        #print("p1 = ", p1)
+        #if(en_Serial_Print):
+        print('is realtimeScore')
+        print("Curent MatchState: %s" % (curent_matchState))
+        print("Amp Count = ", amplificationCount)
+        print("CoopertitionStatus = ", cooperationStatus)
+        print("Amp Status = ", amplificationStatus)
+        print("Amp Accumulator Disabled = ",ampAccumulatorDisable)
 
 def open_websocket(serial_connection):
     def reopen_websocket():
