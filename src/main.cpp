@@ -3,7 +3,7 @@
 //#include <Servo.h>
 #include <Adafruit_TiCoServo.h>
 
-
+#define test_Note_ID_Pin 5
 //Servo myservo;  // create servo object to control a servo
 Adafruit_TiCoServo myservo;  // create servo object to control a servo
 
@@ -13,7 +13,7 @@ int val;
 
 //LEDs start at count 0
 #define NUM_LEDS      202
-#define NUM_UPPER_BLOCK_START 2
+#define NUM_UPPER_BLOCK_START 10
 #define NUM_UPPER_BLOCK_LEN   45
 #define NUM_LOWER_BLOCK_START 191
 #define NUM_LOWER_BLOCK_LEN   1
@@ -278,12 +278,7 @@ bool signOfLifePi_State = false;
 void loop(){
    long int currentTime = millis();
 
-   if (!digitalRead(coopBTN_input)){
-      digitalWrite(coopBTN_led, HIGH);
-      Serial.print("O");
-   }else{
-      digitalWrite(coopBTN_led, LOW);
-   }
+   
 
    if (Serial.available() > 0) {
       // read the incoming byte:
@@ -361,6 +356,16 @@ void loop(){
 
 
    }
+   //****************************************************TEMP
+   if (!digitalRead(coopBTN_input)){
+      digitalWrite(coopBTN_led, HIGH);
+      leds[test_Note_ID_Pin] = CRGB::Red;
+      Serial.print("O");
+   }else{
+      leds[test_Note_ID_Pin] = CRGB::Black;
+      digitalWrite(coopBTN_led, LOW);
+   }
+   //***********************************************************
   
    //Sing Of Life Arduino
    CRGB SOL = CRGB::White;
@@ -401,7 +406,8 @@ void loop(){
    leds[NUM_LOWER_BLOCK_START - 1] = CRGB::Yellow;
 
    // Show Match state on LEDs 3-10
-   leds[matchState_int-18] = CRGB::White;
+   //leds[matchState_int-18] = CRGB::White;
+
    FastLED.show();
    
    //As of 8/4/2022 this program ran at 20ms This assures this is the min
