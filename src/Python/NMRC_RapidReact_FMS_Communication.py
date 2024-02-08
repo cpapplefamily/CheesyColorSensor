@@ -65,9 +65,12 @@ coopState_char_msg_map = {
 def find_arduino_port(): 
     for port in serial.tools.list_ports.comports():
         print('PortID: ' + port.hwid)
+        #fe201000.serial
+        #if 'fe201000.serial' in port.hwid: 
         if 'VID:PID=10C4:EA60' in port.hwid:   
             return port.device
-
+        return '/dev/ttyS0'
+        
 # Retur char recieved from arduino
 def get_serial_char(usb_connection):
     #connection.reset_input_buffer() // Removed for none Blocking
@@ -190,6 +193,7 @@ def main():
     while(True):
         print('Find arduino')
         usb_connection = serial.Serial(find_arduino_port(), 9600)
+        #usb_connection = serial.Serial("/dev/ttyS0", 9600)
 
         if (usb_connection.is_open):
             print("Connected to arduino")
