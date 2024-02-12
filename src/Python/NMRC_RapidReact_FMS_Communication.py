@@ -67,8 +67,8 @@ def find_arduino_port():
         print('PortID: ' + port.hwid)
         #fe201000.serial
         #if 'fe201000.serial' in port.hwid: 
-        if 'VID:PID=10C4:EA60' in port.hwid:   
-            return port.device
+        #if 'VID:PID=10C4:EA60' in port.hwid:   
+        #    return port.device
         return '/dev/ttyS0'
         
 # Retur char recieved from arduino

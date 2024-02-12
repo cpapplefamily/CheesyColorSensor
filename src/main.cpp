@@ -12,11 +12,15 @@ int potpin = A0;  // analog pin used to connect the potentiometer
 int val;
 
 //LEDs start at count 0
-#define NUM_LEDS      202
-#define NUM_UPPER_BLOCK_START 10
-#define NUM_UPPER_BLOCK_LEN   45
-#define NUM_LOWER_BLOCK_START 191
-#define NUM_LOWER_BLOCK_LEN   1
+#define NUM_LEDS      200
+#define NUM_AMP1_LEDS_START 1
+#define NUM_AMP1_LEDS_LEN   46
+#define NUM_AMP2_LEDS_START 47
+#define NUM_AMP2_LEDS_LEN   46 //last LED 92
+#define NUM_COOP_LEDS_START 93
+#define NUM_COOP_LEDS_LEN   48 //Last LED 139
+#define NUM_SPEAKER_LEDS_START 140
+#define NUM_SPEAKER_LEDS_LEN   48 //Last LED 139
 
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
@@ -41,13 +45,16 @@ int val;
 #define coopBTN_led 26
 #define coopBTN_input 27
 
+//Cooperation Button
+#define amplifyBTN_led 28
+#define amplifyBTN_input 29
 
 #define NUM_AMP_SENSORS 1
 
 #define LOWER_SCALE_LIM 0
 #define UPPER_SCALE_LIM 100
 
-#define SIGN_OF_LIFE_AR 0
+#define SIGN_OF_LIFE_AR 140
 #define SIGN_OF_LIFE_PI 1
 
 
@@ -198,9 +205,13 @@ void setup() {
    FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
    FastLED.setBrightness(10);
  
-   //Set up Amp buttons
+   //Set up coop buttons
    pinMode(coopBTN_led,OUTPUT);
    pinMode(coopBTN_input,INPUT_PULLUP);
+   
+   //Set up amplify buttons
+   pinMode(amplifyBTN_led,OUTPUT);
+   pinMode(amplifyBTN_input,INPUT_PULLUP);
 
 }
 
@@ -340,17 +351,15 @@ void loop(){
             //Serial.println("Is red");
             if((ampSensorScored_ONS[i]!= SensorState::RED)){
                //Serial.println("**********RED**************");
-               digitalWrite(led_EN_2, HIGH);
                Serial.print("R");
                ampSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
-               fill_Block(NUM_UPPER_BLOCK_START + (i * NUM_UPPER_BLOCK_LEN), NUM_UPPER_BLOCK_LEN, CRGB::Red);    
+               fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, CRGB::Red);    
             }
             
          }else{
             ampSensorScored_ONS[i]= SensorState::NONE;
-            fill_Block(NUM_UPPER_BLOCK_START + (i * NUM_UPPER_BLOCK_LEN), NUM_UPPER_BLOCK_LEN, MatchState_LEDs);     
-            digitalWrite(led_EN_2, LOW);
+            fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, MatchState_LEDs);     
          };   
       }
 
@@ -364,6 +373,14 @@ void loop(){
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
       digitalWrite(coopBTN_led, LOW);
+   }
+   if (!digitalRead(amplifyBTN_input)){
+      digitalWrite(amplifyBTN_led, HIGH);
+      leds[test_Note_ID_Pin] = CRGB::Red;
+      Serial.print("A");
+   }else{
+      leds[test_Note_ID_Pin] = CRGB::Black;
+      digitalWrite(amplifyBTN_led, LOW);
    }
    //***********************************************************
   
@@ -403,7 +420,7 @@ void loop(){
    }
    
    //Tag Lower Sensor Start Location
-   leds[NUM_LOWER_BLOCK_START - 1] = CRGB::Yellow;
+   leds[NUM_COOP_LEDS_START - 1] = CRGB::Yellow;
 
    // Show Match state on LEDs 3-10
    //leds[matchState_int-18] = CRGB::White;
