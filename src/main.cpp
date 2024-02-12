@@ -13,7 +13,7 @@ int val;
 
 //LEDs start at count 0
 #define NUM_LEDS      200
-#define NUM_AMP1_LEDS_START 1
+#define NUM_AMP1_LEDS_START 0
 #define NUM_AMP1_LEDS_LEN   46
 #define NUM_AMP2_LEDS_START 47
 #define NUM_AMP2_LEDS_LEN   46 //last LED 92
@@ -55,7 +55,7 @@ int val;
 #define UPPER_SCALE_LIM 100
 
 #define SIGN_OF_LIFE_AR 140
-#define SIGN_OF_LIFE_PI 1
+#define SIGN_OF_LIFE_PI SIGN_OF_LIFE_AR + 1
 
 
 boolean EN_CALIBRATE_PLOT = false;
@@ -420,7 +420,7 @@ void loop(){
    }
    
    //Tag Lower Sensor Start Location
-   leds[NUM_COOP_LEDS_START - 1] = CRGB::Yellow;
+   leds[NUM_COOP_LEDS_START] = CRGB::Yellow;
 
    // Show Match state on LEDs 3-10
    //leds[matchState_int-18] = CRGB::White;
