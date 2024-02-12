@@ -423,10 +423,12 @@ void loop(){
          fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
          break;
       case 32: //
-         fill_Block(NUM_AMP1_LEDS_START, NUM_AMP2_LEDS_START + NUM_AMP2_LEDS_LEN, ALLIANCE);
+         fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
+         fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, ALLIANCE);
          break;
       default:
-         fill_Block(NUM_AMP1_LEDS_START, NUM_AMP2_LEDS_START + NUM_AMP2_LEDS_LEN, CRGB::Black);
+         fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, MatchState_LEDs);
+         fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
          break;
       }
 
@@ -436,7 +438,16 @@ void loop(){
          fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, CRGB::Yellow);
          break;
       default:
-         fill_Block(NUM_AMP1_LEDS_START, NUM_AMP2_LEDS_START + NUM_AMP2_LEDS_LEN, CRGB::Black);
+         fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, MatchState_LEDs);
+         break;
+      }
+
+      switch (speakerState_int){
+      case 51:
+         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, ALLIANCE);
+         break;
+      default:
+         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
          break;
       }
       
