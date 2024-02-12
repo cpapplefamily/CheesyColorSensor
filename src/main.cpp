@@ -3,6 +3,9 @@
 //#include <Servo.h>
 #include <Adafruit_TiCoServo.h>
 
+//#define ALLIANCE CRGB::Red
+#define ALLIANCE CRGB::Blue
+
 #define test_Note_ID_Pin 5
 //Servo myservo;  // create servo object to control a servo
 Adafruit_TiCoServo myservo;  // create servo object to control a servo
@@ -13,7 +16,7 @@ int val;
 
 //LEDs start at count 0
 #define NUM_LEDS      200
-#define NUM_AMP1_LEDS_START 0
+#define NUM_AMP1_LEDS_START 1
 #define NUM_AMP1_LEDS_LEN   46
 #define NUM_AMP2_LEDS_START 47
 #define NUM_AMP2_LEDS_LEN   46 //last LED 92
@@ -81,8 +84,43 @@ enum MatchState {
                None              // 29
                };
 
+/*
+matchState_char_msg_map = {
+    "0": '20',
+    "1": '21',
+    "2": '22',
+    "3": '23',
+    "4": '24',
+    "5": '25',
+    "6": '26',
+    "7": '27',
+    "8": '28',
+    "9": '29'
+}
+
+ampState_char_msg_map = {
+    "0": '30',
+    "1": '31',
+    "2": '32'
+}
+
+speakerState_char_msg_map = {
+    "0": '40',
+    "1": '41',
+    "2": '42'
+}
+
+coopState_char_msg_map = {
+    "0": '50',
+    "1": '51'
+}
+*/
+
 CRGB MatchState_LEDs = CRGB::Black;
 int matchState_int; //Not set
+int ampState_int;
+int coopState_int;
+int speakerState_int;
 
 //Eight storage location for the sensor States
 SensorState ampSensorState[NUM_AMP_SENSORS];
@@ -311,6 +349,15 @@ void loop(){
          if((incomingByte) >= 20 & (incomingByte <= 29)){
             matchState_int = incomingByte;
          }
+         if((incomingByte >= 30) & (incomingByte <= 39)){
+            ampState_int = incomingByte;
+         }
+         if((incomingByte >= 40) & (incomingByte <= 49)){
+            speakerState_int = incomingByte;
+         }
+         if((incomingByte >= 50) & (incomingByte <= 59)){
+            coopState_int = incomingByte;
+         }
 
       }
       if(EN_CALIBRATE_PLOT){
@@ -354,12 +401,14 @@ void loop(){
                Serial.print("R");
                ampSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
-               fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, CRGB::Red);    
+               //fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, CRGB::Red); 
+               leds[0] = ALLIANCE;
             }
             
          }else{
             ampSensorScored_ONS[i]= SensorState::NONE;
-            fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, MatchState_LEDs);     
+            fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, MatchState_LEDs);  
+            leds[0] = CRGB::Black;   
          };   
       }
 
