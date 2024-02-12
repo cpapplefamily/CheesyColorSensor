@@ -3,8 +3,8 @@
 //#include <Servo.h>
 #include <Adafruit_TiCoServo.h>
 
-//#define ALLIANCE CRGB::Red
-#define ALLIANCE CRGB::Blue
+#define ALLIANCE CRGB::Red
+//#define ALLIANCE CRGB::Blue
 
 #define test_Note_ID_Pin 5
 //Servo myservo;  // create servo object to control a servo
@@ -237,6 +237,9 @@ void setup() {
    configerSensorLED(Enable_All);
 
    matchState_int = 99;
+   ampState_int = 99;
+   coopState_int = 99;
+   speakerState_int = 99;
     
    //Set up RGB LED strip lights
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
@@ -266,7 +269,10 @@ void Setup_CALIBRATE_PLOT(int incomingByte){
    }
 
 }
-
+/**
+ * @param fill //Start of fill
+ * @param block //Length of block
+*/
 void fill_Block(int fill, int block, CRGB color){
    for(int l=fill; l < (fill+block); l++){
       leds[l] = color;
@@ -407,13 +413,36 @@ void loop(){
             
          }else{
             ampSensorScored_ONS[i]= SensorState::NONE;
-            fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, MatchState_LEDs);  
+            //fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, MatchState_LEDs);  
             leds[0] = CRGB::Black;   
          };   
       }
+   
+      switch (ampState_int){
+      case 31: //
+         fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
+         break;
+      case 32: //
+         fill_Block(NUM_AMP1_LEDS_START, NUM_AMP2_LEDS_START + NUM_AMP2_LEDS_LEN, ALLIANCE);
+         break;
+      default:
+         fill_Block(NUM_AMP1_LEDS_START, NUM_AMP2_LEDS_START + NUM_AMP2_LEDS_LEN, CRGB::Black);
+         break;
+      }
 
+      
+      switch (coopState_int){
+      case 41: //
+         fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, CRGB::Yellow);
+         break;
+      default:
+         fill_Block(NUM_AMP1_LEDS_START, NUM_AMP2_LEDS_START + NUM_AMP2_LEDS_LEN, CRGB::Black);
+         break;
+      }
+      
 
    }
+
    //****************************************************TEMP
    if (!digitalRead(coopBTN_input)){
       digitalWrite(coopBTN_led, HIGH);
@@ -467,9 +496,6 @@ void loop(){
    }else{
       leds[SIGN_OF_LIFE_PI] = CRGB::Black;
    }
-   
-   //Tag Lower Sensor Start Location
-   leds[NUM_COOP_LEDS_START] = CRGB::Yellow;
 
    // Show Match state on LEDs 3-10
    //leds[matchState_int-18] = CRGB::White;
