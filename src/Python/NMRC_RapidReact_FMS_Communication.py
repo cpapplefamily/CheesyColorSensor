@@ -23,6 +23,8 @@ ampAccumulatorDisable = False
 curent_matchState = '9'
 last_matchState = '0'
 en_Serial_Print = True
+ampJson = json.dumps({"Match": curent_matchState,"AmpCount": amplificationCount,"Coop": cooperationStatus,"AmpSec": 0})
+        
 
 goal_char_msg_map = {
     "W": '{ "type": "W" }',
@@ -96,6 +98,7 @@ def get_on_ws_open_callback(usb_connection):
         def run(*args):
             global curent_matchState
             global last_matchState
+            global ampJson
             while(True):
                 goal_char = get_serial_char(usb_connection)
                 if(goal_char != ""):
@@ -112,7 +115,8 @@ def get_on_ws_open_callback(usb_connection):
                         print('MatchState Changed')
                         if (curent_matchState in matchState_char_msg_map):
                             print(f'Info: sent to Arduino {get_msg_from_MatchState_char(curent_matchState)}')
-                            usb_connection.write(bytes(get_msg_from_MatchState_char(curent_matchState), 'utf-8'))
+                            #usb_connection.write(bytes(get_msg_from_MatchState_char(curent_matchState), 'utf-8'))
+                            usb_connection.write(bytes(ampJson, 'utf-8'))
                         else:
                             print('MatchState Error')
                         last_matchState = curent_matchState
@@ -130,6 +134,7 @@ def on_message(ws, message):
     global amplificationCount
     global amplificationStatus
     global ampAccumulatorDisable
+    global ampJson
     
     
     # and returns dict.
@@ -143,15 +148,14 @@ def on_message(ws, message):
             print('is ping')
             print("Curent MatchState: %s" % (curent_matchState))
             print("Last MatchState: %s" % (last_matchState))
-            print("Amp Count = ", amplificationCount)
         last_matchState = '9'
 
     if(data['type'] == 'matchTime'):
         curent_matchState = str(data['data']['MatchState'])
-        amplificationSecRemaining = data['data']['RedAmplificationRemaining']
+        amplificationSecRemaining = data['data'][ALLIANCE_COLOR+'AmplificationRemaining']
         if(en_Serial_Print):
             print('is matchTime')
-            print(curent_matchState)
+            print("Curent MatchState: %s" % (curent_matchState))
             print("Amplification Sec Remaining = ",amplificationSecRemaining)
         
 
@@ -163,15 +167,18 @@ def on_message(ws, message):
         amplificationStatus = p1["AmplificationActive"]
         ampAccumulatorDisable = p1["AmpAccumulatorDisable"]
         amplificationSecRemaining = p1["AmplificationSecRemaining"]
+        ampJson = json.dumps({"Match": curent_matchState,"AmpCount": amplificationCount,"Coop": cooperationStatus,"AmpSec": amplificationSecRemaining})
+        print(ampJson)
         #print("p1 = ", p1)
         #if(en_Serial_Print):
-        print('is realtimeScore')
-        print("Curent MatchState: %s" % (curent_matchState))
-        print("Amp Count = ", amplificationCount)
-        print("CoopertitionStatus = ", cooperationStatus)
-        print("Amp Status = ", amplificationStatus)
-        print("Amp Accumulator Disabled = ",ampAccumulatorDisable)
-        print("Amplification Sec Remaining = ",amplificationSecRemaining)
+        if(en_Serial_Print):
+            print('is realtimeScore')
+            print("Curent MatchState: %s" % (curent_matchState))
+            print("Amp Count = ", amplificationCount)
+            print("CoopertitionStatus = ", cooperationStatus)
+            print("Amp Status = ", amplificationStatus)
+            print("Amp Accumulator Disabled = ",ampAccumulatorDisable)
+            print("Amplification Sec Remaining = ",amplificationSecRemaining)
 
 def open_websocket(serial_connection):
     def reopen_websocket():

@@ -335,7 +335,7 @@ void loop(){
 
    
 
-   if (Serial.available() > 0) {
+   /* if (Serial.available() > 0) {
       // read the incoming byte:
       incomingByte = Serial.parseInt();
       
@@ -369,7 +369,7 @@ void loop(){
       if(EN_CALIBRATE_PLOT){
          Setup_CALIBRATE_PLOT(int_Calibrate);
       }
-   }
+   } */
 
    //set the led backgound color
    MatchState_LEDs = setMatchStateLED(matchState_int);
