@@ -11,8 +11,8 @@ import json
 FMS_IP = "192.168.1.187"
 FMS_PORT = "8080"
 FMS_SERVER = FMS_IP + ":" + FMS_PORT
-ALLIANCE_COLOR = 'red' # Change accordingly
-#ALLIANCE_COLOR = 'blue' # Change accordingly
+#ALLIANCE_COLOR = 'Red' # Change accordingly
+ALLIANCE_COLOR = 'Blue' # Change accordingly
 USERNAME = 'admin'
 PASSWORD = 'ProliantDL160'
 
@@ -22,7 +22,7 @@ amplificationStatus = False
 ampAccumulatorDisable = False
 curent_matchState = '9'
 last_matchState = '0'
-en_Serial_Print = False
+en_Serial_Print = True
 
 goal_char_msg_map = {
     "W": '{ "type": "W" }',
@@ -143,21 +143,26 @@ def on_message(ws, message):
             print('is ping')
             print("Curent MatchState: %s" % (curent_matchState))
             print("Last MatchState: %s" % (last_matchState))
+            print("Amp Count = ", amplificationCount)
         last_matchState = '9'
 
     if(data['type'] == 'matchTime'):
         curent_matchState = str(data['data']['MatchState'])
+        amplificationSecRemaining = data['data']['RedAmplificationRemaining']
         if(en_Serial_Print):
             print('is matchTime')
             print(curent_matchState)
+            print("Amplification Sec Remaining = ",amplificationSecRemaining)
+        
 
     if(data['type'] == 'realtimeScore'):
         curent_matchState = str(data['data']['MatchState'])
-        p1 = data['data']['Red']['Score']
+        p1 = data['data'][ALLIANCE_COLOR]['Score']
         amplificationCount = p1["AmplificationCount"]
         cooperationStatus = p1["CoopertitionStatus"]
         amplificationStatus = p1["AmplificationActive"]
         ampAccumulatorDisable = p1["AmpAccumulatorDisable"]
+        amplificationSecRemaining = p1["AmplificationSecRemaining"]
         #print("p1 = ", p1)
         #if(en_Serial_Print):
         print('is realtimeScore')
@@ -166,6 +171,7 @@ def on_message(ws, message):
         print("CoopertitionStatus = ", cooperationStatus)
         print("Amp Status = ", amplificationStatus)
         print("Amp Accumulator Disabled = ",ampAccumulatorDisable)
+        print("Amplification Sec Remaining = ",amplificationSecRemaining)
 
 def open_websocket(serial_connection):
     def reopen_websocket():
@@ -176,7 +182,7 @@ def open_websocket(serial_connection):
         , allow_redirects=False
     )
 
-    ws = websocket.WebSocketApp(f'ws://{FMS_SERVER}/panels/scoring/{ALLIANCE_COLOR}/websocket'
+    ws = websocket.WebSocketApp(f'ws://{FMS_SERVER}/panels/scoring/{ALLIANCE_COLOR.lower()}/websocket'
         , on_open=get_on_ws_open_callback(serial_connection)
         , on_message=on_message
         , on_close=reopen_websocket
