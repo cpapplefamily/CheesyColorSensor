@@ -2,6 +2,7 @@
 #include "FastLED.h"
 //#include <Servo.h>
 #include <Adafruit_TiCoServo.h>
+#include <ArduinoJson.h>
 
 #define ALLIANCE CRGB::Red
 //#define ALLIANCE CRGB::Blue
@@ -220,10 +221,13 @@ void configerSensorLED(boolean Enable_All){
       
 }
 void setup() {
-   //Open a serial port, currently for debugging but will be used for Arduino > RassperyPi > FMS data transfer
-   Serial.begin(9600); 
-   // Not sure if this is needed anymore. Had something to do with Serial.Read() or maybe is needed for Serial.parseInt()
-   Serial.setTimeout(20);
+   // Initialize "debug" serial port
+  // The data rate must be much higher than the "link" serial port
+   Serial.begin(115200);
+
+   // Initialize the "link" serial port
+   // Use a low data rate to reduce the error ratio
+   Serial1.begin(9600);
 
    myservo.attach(PWM_PIN);  // attaches the servo on PWM_PIN to the servo object
 
@@ -332,45 +336,49 @@ bool signOfLifePi_State = false;
 
 void loop(){
    long int currentTime = millis();
+   // Check if the other Arduino is transmitting
+  if (Serial1.available()) 
+  {
+    // Allocate the JSON document
+    // This one must be bigger than the sender's because it must store the strings
+    StaticJsonDocument<500> doc;
 
-   
+    // Read the JSON document from the "link" serial port
+    DeserializationError err = deserializeJson(doc, Serial1);
 
-   /* if (Serial.available() > 0) {
-      // read the incoming byte:
-      incomingByte = Serial.parseInt();
-      
-      signOfLifePi = true;
-   
-      if(((incomingByte) == '\r' || (incomingByte) == '\n')){
-         //Do Nothing
-      }else{
-         //store incomingByte
-         int_Calibrate = incomingByte;
-         if(int_Calibrate == 9){
-            EN_CALIBRATE_PLOT = true;
-         }else if(int_Calibrate == 8){
-            EN_CALIBRATE_PLOT = false; 
-            configerSensorLED(true);           
-         }
-         if((incomingByte) >= 20 & (incomingByte <= 29)){
-            matchState_int = incomingByte;
-         }
-         if((incomingByte >= 30) & (incomingByte <= 39)){
-            ampState_int = incomingByte;
-         }
-         if((incomingByte >= 40) & (incomingByte <= 49)){
-            speakerState_int = incomingByte;
-         }
-         if((incomingByte >= 50) & (incomingByte <= 59)){
-            coopState_int = incomingByte;
-         }
+    if (err == DeserializationError::Ok) 
+    {
+      // Print the values
+      // (we must use as<T>() to resolve the ambiguity)
+      String output;
+      serializeJson(doc, output);
+      Serial.println("From the Debuger");
+      Serial.print("size ");
+      Serial.println(doc.size());
+      Serial.println(output);
+      Serial.print("Bytes ");
+      Serial.println(output.length());
+      matchState_int = doc["ms"].as<int>();
+      Serial.print("ms : ");
+      Serial.println(matchState_int);
 
-      }
-      if(EN_CALIBRATE_PLOT){
-         Setup_CALIBRATE_PLOT(int_Calibrate);
-      }
-   } */
-
+      // Flush all bytes in the "link" serial port buffer
+      while (Serial1.available() > 0)
+        Serial1.read();
+    } 
+    else 
+    {
+      // Print error to the "debug" serial port
+      Serial.print("deserializeJson() returned ");
+      Serial.println(err.c_str());
+  
+      // Flush all bytes in the "link" serial port buffer
+      while (Serial1.available() > 0)
+        Serial1.read();
+    }
+  }
+/* }
+void newloop(){   */
    //set the led backgound color
    MatchState_LEDs = setMatchStateLED(matchState_int);
 
@@ -404,7 +412,7 @@ void loop(){
             //Serial.println("Is red");
             if((ampSensorScored_ONS[i]!= SensorState::RED)){
                //Serial.println("**********RED**************");
-               Serial.print("R");
+               Serial1.print("R");
                ampSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
                //fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, CRGB::Red); 
@@ -458,7 +466,7 @@ void loop(){
    if (!digitalRead(coopBTN_input)){
       digitalWrite(coopBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
-      Serial.print("O");
+      Serial1.print("O");
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
       digitalWrite(coopBTN_led, LOW);
@@ -466,7 +474,7 @@ void loop(){
    if (!digitalRead(amplifyBTN_input)){
       digitalWrite(amplifyBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
-      Serial.print("A");
+      Serial1.print("A");
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
       digitalWrite(amplifyBTN_led, LOW);

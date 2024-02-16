@@ -16,14 +16,16 @@ ALLIANCE_COLOR = 'Blue' # Change accordingly
 USERNAME = 'admin'
 PASSWORD = 'ProliantDL160'
 
+updateArduino = False
 cooperationStatus = False
 amplificationCount = 0
 amplificationStatus = False
 ampAccumulatorDisable = False
 curent_matchState = '9'
 last_matchState = '0'
-en_Serial_Print = True
-ampJson = json.dumps({"Match": curent_matchState,"AmpCount": amplificationCount,"Coop": cooperationStatus,"AmpSec": 0})
+en_Serial_Print = False
+amplificationSecRemaining = 0
+ampJson = json.dumps({"ms": curent_matchState,"ac": amplificationCount,"co": cooperationStatus,"as": amplificationSecRemaining})
         
 
 goal_char_msg_map = {
@@ -99,6 +101,12 @@ def get_on_ws_open_callback(usb_connection):
             global curent_matchState
             global last_matchState
             global ampJson
+            global cooperationStatus
+            global amplificationCount
+            global amplificationStatus
+            global amplificationSecRemaining
+            global updateArduino
+
             while(True):
                 goal_char = get_serial_char(usb_connection)
                 if(goal_char != ""):
@@ -111,15 +119,12 @@ def get_on_ws_open_callback(usb_connection):
                         print('Error: unknown char recieved')
                     #Give Sign of Life
                 else:
-                    if(curent_matchState != last_matchState):
-                        print('MatchState Changed')
-                        if (curent_matchState in matchState_char_msg_map):
-                            print(f'Info: sent to Arduino {get_msg_from_MatchState_char(curent_matchState)}')
-                            #usb_connection.write(bytes(get_msg_from_MatchState_char(curent_matchState), 'utf-8'))
-                            usb_connection.write(bytes(ampJson, 'utf-8'))
-                        else:
-                            print('MatchState Error')
-                        last_matchState = curent_matchState
+                    if(updateArduino):
+                        print('update Arduino')
+                        ampJson = json.dumps({"ms": 99,"ac": amplificationCount,"co": cooperationStatus,"as": amplificationSecRemaining})
+                        print(f'Info: sent to Arduino {ampJson}')
+                        usb_connection.write(bytes(ampJson, 'utf-8'))
+                        updateArduino = False
             
 
         thread.start_new_thread(run, ())
@@ -129,12 +134,15 @@ def get_on_ws_open_callback(usb_connection):
 def on_message(ws, message):
     global curent_matchState
     global last_matchState
+    global update
     global en_Serial_Print
     global cooperationStatus
     global amplificationCount
     global amplificationStatus
     global ampAccumulatorDisable
+    global amplificationSecRemaining
     global ampJson
+    global updateArduino
     
     
     # and returns dict.
@@ -148,11 +156,12 @@ def on_message(ws, message):
             print('is ping')
             print("Curent MatchState: %s" % (curent_matchState))
             print("Last MatchState: %s" % (last_matchState))
-        last_matchState = '9'
+        updateArduino = True
 
     if(data['type'] == 'matchTime'):
         curent_matchState = str(data['data']['MatchState'])
         amplificationSecRemaining = data['data'][ALLIANCE_COLOR+'AmplificationRemaining']
+        updateArduino = True
         if(en_Serial_Print):
             print('is matchTime')
             print("Curent MatchState: %s" % (curent_matchState))
@@ -167,10 +176,9 @@ def on_message(ws, message):
         amplificationStatus = p1["AmplificationActive"]
         ampAccumulatorDisable = p1["AmpAccumulatorDisable"]
         amplificationSecRemaining = p1["AmplificationSecRemaining"]
-        ampJson = json.dumps({"Match": curent_matchState,"AmpCount": amplificationCount,"Coop": cooperationStatus,"AmpSec": amplificationSecRemaining})
-        print(ampJson)
         #print("p1 = ", p1)
         #if(en_Serial_Print):
+        updateArduino = True
         if(en_Serial_Print):
             print('is realtimeScore')
             print("Curent MatchState: %s" % (curent_matchState))
