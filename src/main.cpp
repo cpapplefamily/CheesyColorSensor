@@ -24,7 +24,7 @@ int val;
 #define NUM_COOP_LEDS_START 93
 #define NUM_COOP_LEDS_LEN   48 //Last LED 139
 #define NUM_SPEAKER_LEDS_START 140
-#define NUM_SPEAKER_LEDS_LEN   48 //Last LED 139
+#define NUM_SPEAKER_LEDS_LEN   60 //Last LED 139
 
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
@@ -122,6 +122,7 @@ int matchState_int; //Not set
 int ampState_int;
 int coopState_int;
 int speakerState_int;
+int amptime_int;
 
 //Eight storage location for the sensor States
 SensorState ampSensorState[NUM_AMP_SENSORS];
@@ -242,8 +243,9 @@ void setup() {
 
    matchState_int = 99;
    ampState_int = 99;
-   coopState_int = 99;
+   coopState_int = 0;
    speakerState_int = 99;
+   amptime_int = 0;
     
    //Set up RGB LED strip lights
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
@@ -285,16 +287,17 @@ void fill_Block(int fill, int block, CRGB color){
 
 CRGB setMatchStateLED(int matchState){
    switch (matchState){
-      case 20: //PreMatch
-         return CRGB::Green;
-         break;
-      case 21 ... 25: //StartMatch
+      case 0: //PreMatch
+         //return CRGB::Green;
          return CRGB::Black;
          break;
-      case 26: // PostMatch
+      case 1 ... 5: //StartMatch
+         return CRGB::Black;
+         break;
+      case 6: // PostMatch
          return CRGB::Violet;
          break;
-      case 27 ... 28: // TimeoutActive
+      case 7 ... 8: // TimeoutActive
          return CRGB::Black;
          break;
       default:
@@ -342,7 +345,7 @@ void loop(){
     // Allocate the JSON document
     // This one must be bigger than the sender's because it must store the strings
     StaticJsonDocument<500> doc;
-
+   doc.clear();
     // Read the JSON document from the "link" serial port
     DeserializationError err = deserializeJson(doc, Serial1);
 
@@ -361,6 +364,13 @@ void loop(){
       matchState_int = doc["ms"].as<int>();
       Serial.print("ms : ");
       Serial.println(matchState_int);
+      Serial.print("ac : ");
+      ampState_int = doc["ac"].as<int>();
+      Serial.println(ampState_int);
+      coopState_int = doc["co"].as<int>();
+      Serial.print("co : ");
+      Serial.println(coopState_int);
+      amptime_int = doc["as"].as<int>();
 
       // Flush all bytes in the "link" serial port buffer
       while (Serial1.available() > 0)
@@ -427,10 +437,11 @@ void newloop(){   */
       }
    
       switch (ampState_int){
-      case 31: //
+      case 1: //
          fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
+         fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
          break;
-      case 32: //
+      case 2: //
          fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
          fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, ALLIANCE);
          break;
@@ -442,7 +453,7 @@ void newloop(){   */
 
       
       switch (coopState_int){
-      case 41: //
+      case 1: //
          fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, CRGB::Yellow);
          break;
       default:
@@ -450,13 +461,23 @@ void newloop(){   */
          break;
       }
 
-      switch (speakerState_int){
+     /*  switch (speakerState_int){
       case 51:
          fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, ALLIANCE);
          break;
       default:
          fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
          break;
+      } */
+      float z;
+      if(amptime_int>0){
+         z =  (float)amptime_int / 130.0;
+         Serial.println(z);
+         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
+         fill_Block(NUM_SPEAKER_LEDS_START , z  * NUM_SPEAKER_LEDS_LEN, ALLIANCE);
+
+      }else{
+         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
       }
       
 
@@ -474,7 +495,7 @@ void newloop(){   */
    if (!digitalRead(amplifyBTN_input)){
       digitalWrite(amplifyBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
-      Serial1.print("A");
+      Serial1.print("P");
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
       digitalWrite(amplifyBTN_led, LOW);
