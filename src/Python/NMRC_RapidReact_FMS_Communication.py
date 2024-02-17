@@ -121,7 +121,7 @@ def get_on_ws_open_callback(usb_connection):
                 else:
                     if(updateArduino):
                         print('update Arduino')
-                        ampJson = json.dumps({"ms": 99,"ac": amplificationCount,"co": cooperationStatus,"as": amplificationSecRemaining})
+                        ampJson = json.dumps({"ms": curent_matchState,"ac": amplificationCount,"co": cooperationStatus,"as": amplificationSecRemaining})
                         print(f'Info: sent to Arduino {ampJson}')
                         usb_connection.write(bytes(ampJson, 'utf-8'))
                         updateArduino = False
@@ -159,7 +159,7 @@ def on_message(ws, message):
         updateArduino = True
 
     if(data['type'] == 'matchTime'):
-        curent_matchState = str(data['data']['MatchState'])
+        curent_matchState = data['data']['MatchState']
         amplificationSecRemaining = data['data'][ALLIANCE_COLOR+'AmplificationRemaining']
         updateArduino = True
         if(en_Serial_Print):
@@ -169,7 +169,7 @@ def on_message(ws, message):
         
 
     if(data['type'] == 'realtimeScore'):
-        curent_matchState = str(data['data']['MatchState'])
+        curent_matchState = data['data']['MatchState']
         p1 = data['data'][ALLIANCE_COLOR]['Score']
         amplificationCount = p1["AmplificationCount"]
         cooperationStatus = p1["CoopertitionStatus"]
