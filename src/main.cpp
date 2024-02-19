@@ -4,8 +4,8 @@
 #include <Adafruit_TiCoServo.h>
 #include <ArduinoJson.h>
 
-#define ALLIANCE CRGB::Red
-//#define ALLIANCE CRGB::Blue
+//#define ALLIANCE CRGB::Red
+#define ALLIANCE CRGB::Blue
 
 #define test_Note_ID_Pin 5
 //Servo myservo;  // create servo object to control a servo
@@ -498,7 +498,11 @@ void newloop(){   */
       Serial1.print("P");
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
-      digitalWrite(amplifyBTN_led, LOW);
+      if(amptime_int>0){
+         digitalWrite(amplifyBTN_led, HIGH);
+      }else{
+         digitalWrite(amplifyBTN_led, LOW);
+      }
    }
    //***********************************************************
   
