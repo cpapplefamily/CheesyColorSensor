@@ -15,7 +15,7 @@ int potpin = A0;  // analog pin used to connect the potentiometer
 int val;
 
 //LEDs start at count 0
-#define NUM_LEDS      200
+#define NUM_LEDS      210
 #define NUM_AMP1_LEDS_START 1
 #define NUM_AMP1_LEDS_LEN   46
 #define NUM_AMP2_LEDS_START 47
@@ -23,7 +23,7 @@ int val;
 #define NUM_COOP_LEDS_START 93
 #define NUM_COOP_LEDS_LEN   48 //Last LED 139
 #define NUM_SPEAKER_LEDS_START 140
-#define NUM_SPEAKER_LEDS_LEN   48 //Last LED 139
+#define NUM_SPEAKER_LEDS_LEN   70 //Last LED 139
 
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
@@ -60,6 +60,7 @@ int val;
 #define SIGN_OF_LIFE_AR 140
 #define SIGN_OF_LIFE_PI SIGN_OF_LIFE_AR + 1
 
+#define Serial_Debug Serial
 
 boolean EN_CALIBRATE_PLOT = false;
 
@@ -201,9 +202,9 @@ SensorState getSensorState(GY_31 sensor){
       state = SensorState::NONE;
    }
    if(EN_CALIBRATE_PLOT){
-      Serial.print(bluedata); 
-      Serial.print(","); 
-      Serial.println(reddata);        
+      Serial_Debug.print(bluedata); 
+      Serial_Debug.print(","); 
+      Serial_Debug.println(reddata);        
    }; 
 
    return state;
@@ -220,10 +221,13 @@ void configerSensorLED(boolean Enable_All){
       
 }
 void setup() {
-   //Open a serial port, currently for debugging but will be used for Arduino > RassperyPi > FMS data transfer
-   Serial.begin(9600); 
-   // Not sure if this is needed anymore. Had something to do with Serial.Read() or maybe is needed for Serial.parseInt()
-   Serial.setTimeout(20);
+   //Open a serial port for debugging
+   Serial_Debug.begin(14400); 
+
+
+   //Serial1 for data link Low Rate for reduced error
+
+   Serial1.begin(2400);
 
    myservo.attach(PWM_PIN);  // attaches the servo on PWM_PIN to the servo object
 
@@ -265,7 +269,7 @@ void Setup_CALIBRATE_PLOT(int incomingByte){
 
    if((incomingByte>=0) & (incomingByte <= (NUM_AMP_SENSORS - 1))){
       ampSensors[incomingByte].enableLEDs(true);
-      Serial.println("Upper");
+      Serial_Debug.println("Upper");
    }
 
 }
@@ -330,14 +334,49 @@ int int_Calibrate = 0; // for incoming serial data
 bool signOfLifePi = false;
 bool signOfLifePi_State = false;
 
-void loop(){
-   long int currentTime = millis();
+const byte numChars = 32;
+char receivedChars[numChars];   // an array to store the received data
 
-   
+boolean newData = false;
 
-   if (Serial.available() > 0) {
+void recvWithEndMarker() {
+    static byte ndx = 0;
+    char endMarker = '\n';
+    char rc;
+    
+    while (Serial1.available() > 0 && newData == false) {
+        rc = Serial1.read();
+
+        if (rc != endMarker) {
+            receivedChars[ndx] = rc;
+            ndx++;
+            if (ndx >= numChars) {
+                ndx = numChars - 1;
+            }
+        }
+        else {
+            receivedChars[ndx] = '\0'; // terminate the string
+            ndx = 0;
+            newData = true;
+        }
+    }
+}
+
+
+void update(){
+   if (newData == true) {
+        Serial.print("This just in ... ");
+        Serial.println(receivedChars);
+
       // read the incoming byte:
-      incomingByte = Serial.parseInt();
+      //incomingByte = Serial1.parseInt();
+      incomingByte = 0;
+      incomingByte = atoi(receivedChars);
+
+      Serial_Debug.print("incoming Number: ");
+      Serial_Debug.println(incomingByte);
+
+      newData = false;
       
       signOfLifePi = true;
    
@@ -395,16 +434,18 @@ void loop(){
       
          boolean printSensor_time = false;
          if((i == 3) & (printSensor_time)){ 
-            Serial.print("Sensor 3 ");
-            Serial.print(micros() - startsence);
-            Serial.println(" us");
+            Serial_Debug.print("Sensor 3 ");
+            Serial_Debug.print(micros() - startsence);
+            Serial_Debug.println(" us");
          }
       
          if(debouncAMP[i].calculate((ampSensorState[i] == SensorState::RED))){
             //Serial.println("Is red");
             if((ampSensorScored_ONS[i]!= SensorState::RED)){
                //Serial.println("**********RED**************");
-               Serial.print("R");
+               Serial_Debug.print("Sending To Arena Teliop Amp Scored: ");
+               Serial_Debug.println("\"R\"");
+               Serial1.print("R");
                ampSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
                //fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, CRGB::Red); 
@@ -421,6 +462,7 @@ void loop(){
       switch (ampState_int){
       case 31: //
          fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
+         fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
          break;
       case 32: //
          fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
@@ -434,7 +476,7 @@ void loop(){
 
       
       switch (coopState_int){
-      case 41: //
+      case 51: //
          fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, CRGB::Yellow);
          break;
       default:
@@ -443,7 +485,7 @@ void loop(){
       }
 
       switch (speakerState_int){
-      case 51:
+      case 41:
          fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, ALLIANCE);
          break;
       default:
@@ -458,7 +500,9 @@ void loop(){
    if (!digitalRead(coopBTN_input)){
       digitalWrite(coopBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
-      Serial.print("O");
+      Serial_Debug.print("Co-Op Pressed");
+      Serial_Debug.println("\"O\"");
+      Serial1.print("O");
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
       digitalWrite(coopBTN_led, LOW);
@@ -466,7 +510,9 @@ void loop(){
    if (!digitalRead(amplifyBTN_input)){
       digitalWrite(amplifyBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
-      Serial.print("A");
+      Serial_Debug.print("Amp Pressed: ");
+      Serial_Debug.println("\"P\"");
+      Serial1.print("P");
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
       digitalWrite(amplifyBTN_led, LOW);
@@ -517,5 +563,12 @@ void loop(){
    while((millis() - currentTime)<20){}
    
    //ToDo add warning if over ?ms
+}
+
+void loop(){
+   long int currentTime = millis();
+   recvWithEndMarker();
+   update();
+   
 }
 
