@@ -26,9 +26,11 @@ current_ampCount = '0'
 last_ampCount = '99'
 current_coopStatus = '0'
 last_coopStatus = '99'
-current_speakerState = '0'
-last_speakerState = '99'
+current_speakerState = 'False'
+last_speakerState = 'False'
 en_Serial_Print = False
+amplificationPercentRemaining = -99
+
 
 
 goal_char_msg_map = {
@@ -118,6 +120,9 @@ def get_on_ws_open_callback(usb_connection):
             global last_coopStatus
             global current_speakerState
             global last_speakerState
+            global amplificationPercentRemaining
+            global amplificationPercentUpdate
+
             while(True):
                 goal_char = get_serial_char(usb_connection)
                 if(goal_char != ""):
@@ -161,10 +166,15 @@ def get_on_ws_open_callback(usb_connection):
                         print('speaker Status Changed')
                         if (current_speakerState in speakerState_char_msg_map):
                             print(f'Info: sent to Arduino {get_msg_from_SpeakerState_char(current_speakerState)}')
-                            usb_connection.write(bytes(get_msg_from_SpeakerState_char(current_speakerState)+"\n", 'utf-8'))
+                            usb_connection.write(bytes(get_msg_from_SpeakerState_char(current_speakerState) +"\n", 'utf-8'))
                         else:
                             print('speakerState Error')
                         last_speakerState = current_speakerState
+                    elif(amplificationPercentUpdate):
+                        print("Amplification Percent Remaining = ", amplificationPercentRemaining)
+                        msg = str(amplificationPercentRemaining) + "\n"
+                        usb_connection.write(bytes(msg.encode()))
+                        amplificationPercentUpdate = False
             
 
         thread.start_new_thread(run, ())
@@ -184,6 +194,8 @@ def on_message(ws, message):
     global cooperationStatus
     global amplificationStatus
     global ampAccumulatorDisable
+    global amplificationPercentRemaining
+    global amplificationPercentUpdate
     
     
     # and returns dict.
@@ -200,16 +212,22 @@ def on_message(ws, message):
             print("Amp Count = ", amplificationCount)
         last_matchState = '9' #force a refresh
         last_ampCount = '99' #force a refresh
+        last_coopStatus = '99'
 
     if(data['type'] == 'matchTime'):
         current_matchState = str(data['data']['MatchState'])
         amplificationSecRemaining = data['data']['RedAmplificationRemaining']
+        if (amplificationSecRemaining > 0):
+            amplificationPercentRemaining =  int((((amplificationSecRemaining) / 130 ) * 100) + 100)
+            amplificationPercentUpdate = True
+        else:
+            amplificationPercentRemaining = 0
+            amplificationPercentUpdate = False
         if(en_Serial_Print):
             print('is matchTime')
             print(current_matchState)
             print("Amplification Sec Remaining = ",amplificationSecRemaining)
-        else:
-            print("Amplification Sec Remaining = ",amplificationSecRemaining)
+            print("Amplification Percent Remaining = ", amplificationPercentRemaining)
         
 
     if(data['type'] == 'realtimeScore'):

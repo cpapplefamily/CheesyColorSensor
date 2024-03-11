@@ -23,7 +23,7 @@ int val;
 #define NUM_COOP_LEDS_START 93
 #define NUM_COOP_LEDS_LEN   48 //Last LED 139
 #define NUM_SPEAKER_LEDS_START 140
-#define NUM_SPEAKER_LEDS_LEN   70 //Last LED 139
+#define NUM_SPEAKER_LEDS_LEN   70 //Last LED 210
 
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
@@ -320,7 +320,6 @@ void run_Agitator(boolean run){
  */
 
 long int hartBeatTck = 0;
-long int currentTime = 0;
 boolean hartBeat = false;
 
 /* goal_char_msg_map = {
@@ -362,11 +361,17 @@ void recvWithEndMarker() {
     }
 }
 
+float amp_percent;
 
-void update(){
+void loop(){
+
+   recvWithEndMarker();
+   
+   long int currentTime = millis();
+
    if (newData == true) {
-        Serial.print("This just in ... ");
-        Serial.println(receivedChars);
+       //Serial.print("This just in ... ");
+       //Serial.println(receivedChars);
 
       // read the incoming byte:
       //incomingByte = Serial1.parseInt();
@@ -403,13 +408,27 @@ void update(){
          if((incomingByte >= 50) & (incomingByte <= 59)){
             coopState_int = incomingByte;
          }
-
+          if((incomingByte >= 100) & (incomingByte <= 200)){
+            Serial_Debug.println("*****************");
+            float num = (incomingByte-100);
+            Serial_Debug.print("num: ");
+            Serial_Debug.println(num);
+            if(speakerState_int != 40 ){
+               amp_percent = float( (incomingByte-100)/100.0);
+               Serial_Debug.print("amp_percent: ");
+               Serial_Debug.println(amp_percent);
+            }
+            
+         }
       }
       if(EN_CALIBRATE_PLOT){
          Setup_CALIBRATE_PLOT(int_Calibrate);
       }
    }
 
+   if(speakerState_int == 40 ){
+      amp_percent = 0;
+   }
    //set the led backgound color
    MatchState_LEDs = setMatchStateLED(matchState_int);
 
@@ -483,10 +502,13 @@ void update(){
          fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, MatchState_LEDs);
          break;
       }
-
+    
       switch (speakerState_int){
       case 41:
-         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, ALLIANCE);
+         //Clear strip
+         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN , MatchState_LEDs);
+         //Fill with remaining time
+         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN * amp_percent , ALLIANCE);
          break;
       default:
          fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
@@ -523,6 +545,7 @@ void update(){
    CRGB SOL = CRGB::White;
    long int now = millis();
    //Hartbeat LED Color
+   
    if((now - currentTime)>=50){
       SOL = CRGB::Red;
    }else if ((now - currentTime)>=25){
@@ -541,6 +564,8 @@ void update(){
    }else{
       leds[SIGN_OF_LIFE_AR] = CRGB::Black;
    }
+
+
 
    //Sing Of Life Raspberry Pi
    if(signOfLifePi){
@@ -565,10 +590,4 @@ void update(){
    //ToDo add warning if over ?ms
 }
 
-void loop(){
-   long int currentTime = millis();
-   recvWithEndMarker();
-   update();
-   
-}
 
