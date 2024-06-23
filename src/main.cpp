@@ -4,6 +4,9 @@
 #include <Adafruit_TiCoServo.h>
 #include <ArduinoJson.h>
 
+#define Serial1_FMS_Amp Serial1
+#define Serial_Debug Serial
+
 #define ALLIANCE CRGB::Red
 //#define ALLIANCE CRGB::Blue
 
@@ -202,9 +205,9 @@ SensorState getSensorState(GY_31 sensor){
       state = SensorState::NONE;
    }
    if(EN_CALIBRATE_PLOT){
-      Serial.print(bluedata); 
-      Serial.print(","); 
-      Serial.println(reddata);        
+      Serial_Debug.print(bluedata); 
+      Serial_Debug.print(","); 
+      Serial_Debug.println(reddata);        
    }; 
 
    return state;
@@ -223,11 +226,11 @@ void configerSensorLED(boolean Enable_All){
 void setup() {
    // Initialize "debug" serial port
   // The data rate must be much higher than the "link" serial port
-   Serial.begin(115200);
+   Serial_Debug.begin(115200);
 
    // Initialize the "link" serial port
    // Use a low data rate to reduce the error ratio
-   Serial1.begin(9600);
+   Serial1_FMS_Amp.begin(9600);
 
    myservo.attach(PWM_PIN);  // attaches the servo on PWM_PIN to the servo object
 
@@ -269,7 +272,7 @@ void Setup_CALIBRATE_PLOT(int incomingByte){
 
    if((incomingByte>=0) & (incomingByte <= (NUM_AMP_SENSORS - 1))){
       ampSensors[incomingByte].enableLEDs(true);
-      Serial.println("Upper");
+      Serial_Debug.println("Upper");
    }
 
 }
@@ -337,14 +340,14 @@ bool signOfLifePi_State = false;
 void loop(){
    long int currentTime = millis();
    // Check if the other Arduino is transmitting
-  if (Serial1.available()) 
+  if (Serial1_FMS_Amp.available()) 
   {
     // Allocate the JSON document
     // This one must be bigger than the sender's because it must store the strings
     StaticJsonDocument<500> doc;
 
     // Read the JSON document from the "link" serial port
-    DeserializationError err = deserializeJson(doc, Serial1);
+    DeserializationError err = deserializeJson(doc, Serial1_FMS_Amp);
 
     if (err == DeserializationError::Ok) 
     {
@@ -352,29 +355,29 @@ void loop(){
       // (we must use as<T>() to resolve the ambiguity)
       String output;
       serializeJson(doc, output);
-      Serial.println("From the Debuger");
-      Serial.print("size ");
-      Serial.println(doc.size());
-      Serial.println(output);
-      Serial.print("Bytes ");
-      Serial.println(output.length());
+      Serial_Debug.println("From the Debuger");
+      Serial_Debug.print("size ");
+      Serial_Debug.println(doc.size());
+      Serial_Debug.println(output);
+      Serial_Debug.print("Bytes ");
+      Serial_Debug.println(output.length());
       matchState_int = doc["ms"].as<int>();
-      Serial.print("ms : ");
-      Serial.println(matchState_int);
+      Serial_Debug.print("ms : ");
+      Serial_Debug.println(matchState_int);
 
       // Flush all bytes in the "link" serial port buffer
-      while (Serial1.available() > 0)
-        Serial1.read();
+      while (Serial1_FMS_Amp.available() > 0)
+        Serial1_FMS_Amp.read();
     } 
     else 
     {
       // Print error to the "debug" serial port
-      Serial.print("deserializeJson() returned ");
-      Serial.println(err.c_str());
+      Serial_Debug.print("deserializeJson() returned ");
+      Serial_Debug.println(err.c_str());
   
       // Flush all bytes in the "link" serial port buffer
-      while (Serial1.available() > 0)
-        Serial1.read();
+      while (Serial1_FMS_Amp.available() > 0)
+        Serial1_FMS_Amp.read();
     }
   }
 /* }
@@ -403,16 +406,16 @@ void newloop(){   */
       
          boolean printSensor_time = false;
          if((i == 3) & (printSensor_time)){ 
-            Serial.print("Sensor 3 ");
-            Serial.print(micros() - startsence);
-            Serial.println(" us");
+            Serial_Debug.print("Sensor 3 ");
+            Serial_Debug.print(micros() - startsence);
+            Serial_Debug.println(" us");
          }
       
          if(debouncAMP[i].calculate((ampSensorState[i] == SensorState::RED))){
-            //Serial.println("Is red");
+            //Serial_Debug.println("Is red");
             if((ampSensorScored_ONS[i]!= SensorState::RED)){
-               //Serial.println("**********RED**************");
-               Serial1.print("R");
+               //Serial_Debug.println("**********RED**************");
+               Serial1_FMS_Amp.print("A");
                ampSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
                //fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, CRGB::Red); 
@@ -466,15 +469,15 @@ void newloop(){   */
    if (!digitalRead(coopBTN_input)){
       digitalWrite(coopBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
-      Serial1.print("O");
+      Serial1_FMS_Amp.print("C");
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
       digitalWrite(coopBTN_led, LOW);
-   }
+   }                
    if (!digitalRead(amplifyBTN_input)){
       digitalWrite(amplifyBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
-      Serial1.print("A");
+      Serial1_FMS_Amp.print("K");
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
       digitalWrite(amplifyBTN_led, LOW);

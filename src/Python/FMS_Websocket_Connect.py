@@ -7,32 +7,31 @@ import _thread as thread
 import websocket
 import json
 
-FMS_IP = "10.0.100.05"
-#FMS_IP = "192.168.1.187"
+#FMS_IP = "10.0.100.05"
+FMS_IP = "192.168.1.187"
 FMS_PORT = "8080"
 FMS_SERVER = FMS_IP + ":" + FMS_PORT
-#ALLIANCE_COLOR = 'Red' # Change accordingly
-ALLIANCE_COLOR = 'Blue' # Change accordingly
+ALLIANCE_COLOR = 'Red' # Change accordingly
+#ALLIANCE_COLOR = 'Blue' # Change accordingly
 USERNAME = 'admin'
 PASSWORD = 'ProliantDL160'
 
+isWindows = True
 updateArduino = False
-cooperationStatus = False
-amplificationCount = 0
-amplificationStatus = False
-ampAccumulatorDisable = False
+CoopActivated = False
+BankedAmpNotes = 0
+AmplifiedTimePostWindow = False
 curent_matchState = '9'
 last_matchState = '0'
-en_Serial_Print = False
-amplificationSecRemaining = 0
-ampJson = json.dumps({"ms": curent_matchState,"ac": amplificationCount,"co": cooperationStatus,"as": amplificationSecRemaining})
-        
+en_Serial_Print = True
+AmplifiedTimeRemainingSec = 0
+       
 
 goal_char_msg_map = {
-    "W": '{ "type": "W" }',
-    "R": '{ "type": "R" }',
-    "P": '{ "type": "amplificationActive" }',
-    "O": '{ "type": "coopertitionStatus" }'
+    "S": '{ "type": "S" }',
+    "A": '{ "type": "A" }',
+    "K": '{ "type": "amplifyButton" }',
+    "C": '{ "type": "coopButton" }'
 }
 
 matchState_char_msg_map = {
@@ -67,13 +66,16 @@ coopState_char_msg_map = {
 
 # Return the first arduino mega connected to PC
 def find_arduino_port(): 
+    global isWindows
     for port in serial.tools.list_ports.comports():
         print('PortID: ' + port.hwid)
         #fe201000.serial
         #if 'fe201000.serial' in port.hwid: 
         #if 'VID:PID=10C4:EA60' in port.hwid:   
-        #    return port.device
-        return '/dev/ttyS0'
+        if(isWindows):
+            return port.device
+        else:
+            return '/dev/ttyS0'
         
 # Retur char recieved from arduino
 def get_serial_char(usb_connection):
@@ -100,11 +102,10 @@ def get_on_ws_open_callback(usb_connection):
         def run(*args):
             global curent_matchState
             global last_matchState
-            global ampJson
-            global cooperationStatus
-            global amplificationCount
-            global amplificationStatus
-            global amplificationSecRemaining
+            global CoopActivated
+            global BankedAmpNotes
+            global AmplifiedTimePostWindow
+            global AmplifiedTimeRemainingSec
             global updateArduino
 
             while(True):
@@ -121,9 +122,6 @@ def get_on_ws_open_callback(usb_connection):
                 else:
                     if(updateArduino):
                         print('update Arduino')
-                        ampJson = json.dumps({"ms": curent_matchState,"ac": amplificationCount,"co": cooperationStatus,"as": amplificationSecRemaining})
-                        print(f'Info: sent to Arduino {ampJson}')
-                        usb_connection.write(bytes(ampJson, 'utf-8'))
                         updateArduino = False
             
 
@@ -134,25 +132,23 @@ def get_on_ws_open_callback(usb_connection):
 def on_message(ws, message):
     global curent_matchState
     global last_matchState
-    global update
     global en_Serial_Print
-    global cooperationStatus
-    global amplificationCount
-    global amplificationStatus
-    global ampAccumulatorDisable
-    global amplificationSecRemaining
-    global ampJson
+    global CoopActivated
+    global BankedAmpNotes
+    global AmplifiedTimePostWindow
+    global AmplifiedTimeRemainingSec
     global updateArduino
     
     
     # and returns dict.
     data = json.loads(message)
-    if(en_Serial_Print):
+    if(en_Serial_Print and False):
         print("JSON string = ", data)
         print()
 
     if(data['type'] == 'ping'):
         if(en_Serial_Print):
+            print("JSON string = ", data)
             print('is ping')
             print("Curent MatchState: %s" % (curent_matchState))
             print("Last MatchState: %s" % (last_matchState))
@@ -160,37 +156,33 @@ def on_message(ws, message):
 
     if(data['type'] == 'matchTime'):
         curent_matchState = data['data']['MatchState']
-        amplificationSecRemaining = data['data'][ALLIANCE_COLOR+'AmplificationRemaining']
         updateArduino = True
-        if(en_Serial_Print):
+        if(en_Serial_Print and False):
+            print("JSON string = ", data)
             print('is matchTime')
             print("Curent MatchState: %s" % (curent_matchState))
-            print("Amplification Sec Remaining = ",amplificationSecRemaining)
         
 
     if(data['type'] == 'realtimeScore'):
+        #print("JSON string = ", data)
+        print()
         curent_matchState = data['data']['MatchState']
-        p1 = data['data'][ALLIANCE_COLOR]['Score']
-        amplificationCount = p1["AmplificationCount"]
-        cooperationStatus_STR = p1["CoopertitionStatus"]
-        if(cooperationStatus_STR):
-            cooperationStatus = 1
-        else:
-            cooperationStatus = 0
-        amplificationStatus = p1["AmplificationActive"]
-        ampAccumulatorDisable = p1["AmpAccumulatorDisable"]
-        amplificationSecRemaining = p1["AmplificationSecRemaining"]
-        #print("p1 = ", p1)
+        allianceScore = data['data'][ALLIANCE_COLOR]['Score']
+        BankedAmpNotes = allianceScore["AmpSpeaker"]["BankedAmpNotes"]
+        CoopActivated = allianceScore["AmpSpeaker"]["CoopActivated"]
+        AmplifiedTimePostWindow = data['data'][ALLIANCE_COLOR]["AmplifiedTimePostWindow"]
+        AmplifiedTimeRemainingSec = data['data'][ALLIANCE_COLOR]["AmplifiedTimeRemainingSec"]
+        #print("allianceScore = ", allianceScore)
         #if(en_Serial_Print):
         updateArduino = True
         if(en_Serial_Print):
             print('is realtimeScore')
             print("Curent MatchState: %s" % (curent_matchState))
-            print("Amp Count = ", amplificationCount)
-            print("CoopertitionStatus = ", cooperationStatus)
-            print("Amp Status = ", amplificationStatus)
-            print("Amp Accumulator Disabled = ",ampAccumulatorDisable)
-            print("Amplification Sec Remaining = ",amplificationSecRemaining)
+            #print("allianceScore: %s" % (allianceScore))
+            print("BankedAmpNotes = ", BankedAmpNotes)
+            print("CoopertitionStatus = ", CoopActivated)
+            print("AmplifiedTimePostWindow = ", AmplifiedTimePostWindow)
+            print("Amplification Sec Remaining = ",AmplifiedTimeRemainingSec)
 
 def open_websocket(serial_connection):
     def reopen_websocket():
@@ -210,20 +202,39 @@ def open_websocket(serial_connection):
 
     ws.run_forever()
 
+def open_websocket2():
+    def reopen_websocket():
+        open_websocket2()
+
+    res = requests.post(f'http://{FMS_SERVER}/login'
+        , data={'username': USERNAME, 'password': PASSWORD}
+        , allow_redirects=False
+    )
+
+    ws = websocket.WebSocketApp(f'ws://{FMS_SERVER}/panels/scoring/{ALLIANCE_COLOR.lower()}/websocket'
+        #, on_open=get_on_ws_open_callback(serial_connection)
+        , on_message=on_message
+        , on_close=reopen_websocket
+        , cookie="; ".join(["%s=%s" %(i, j) for i, j in res.cookies.get_dict().items()])
+    )
+
+    ws.run_forever()
+
 def main():
-    
+    usingArduino = True
     """Loops until a connection is made to the Arduino.
     When connected advances to check for Area
     """
-    while(True):
-        print('Find arduino')
-        usb_connection = serial.Serial(find_arduino_port(), 9600)
-        #usb_connection = serial.Serial("/dev/ttyS0", 9600)
+    if (usingArduino):
+        while(True):
+            print('Find arduino')
+            usb_connection = serial.Serial(find_arduino_port(), 9600)
+            #usb_connection = serial.Serial("/dev/ttyS0", 9600)
 
-        if (usb_connection.is_open):
-            print("Connected to arduino")
-            break
-        time.sleep(2)
+            if (usb_connection.is_open):
+                print("Connected to arduino")
+                break
+            time.sleep(2)
     
     """Loops until a connection is made to the FMS.
     When connected opens a websocket 
@@ -238,7 +249,11 @@ def main():
             print("Network Error")
         if(response == 0): break
         time.sleep(2)
-        
-    open_websocket(usb_connection)
+    
+    #Open Websocket
+    if(usingArduino):
+        open_websocket(usb_connection)
+    else:
+        open_websocket2()
 
 main()
