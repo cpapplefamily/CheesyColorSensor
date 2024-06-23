@@ -114,7 +114,7 @@ matchState_char_msg_map = {
     "9": '29'
 }
 
-ampState_char_msg_map = {
+bankedAmpNotes_char_msg_map = {
     "0": '30',
     "1": '31',
     "2": '32'
@@ -134,7 +134,7 @@ coopState_char_msg_map = {
 
 CRGB MatchState_LEDs = CRGB::Black;
 int matchState_int; //Not set
-int ampState_int;
+int bankedAmpNotes_int;
 int coopState_int;
 int speakerState_int;
 
@@ -264,7 +264,7 @@ void setup() {
    digitalWrite(S1pin, (sensorPowerScale >> 1) & 1);
 
    matchState_int = 99;
-   ampState_int = 99;
+   bankedAmpNotes_int = 99;
    coopState_int = 99;
    speakerState_int = 99;
     
@@ -336,6 +336,35 @@ void run_Agitator(boolean run){
    myservo.write(val);   
 }
 
+
+const byte numChars = 32;
+char receivedChars[numChars];   // an array to store the received data
+
+boolean newData = false;
+
+void recvWithEndMarker() {
+    static byte ndx = 0;
+    char endMarker = '\n';
+    char rc;
+    
+    while (Serial1_FMS_Amp.available() > 0 && newData == false) {
+        rc = Serial1_FMS_Amp.read();
+        
+        if (rc != endMarker) {
+            receivedChars[ndx] = rc;
+            ndx++;
+            if (ndx >= numChars) {
+                ndx = numChars - 1;
+            }
+        }
+        else {
+            receivedChars[ndx] = '\0'; // terminate the string
+            ndx = 0;
+            newData = true;
+        }
+    }
+}
+
 /**
  * Main Loop
  * 
@@ -352,30 +381,29 @@ boolean hartBeat = false;
     "P": '{ "type": "P" }',
     "O": '{ "type": "O" }
 } */
-int incomingByte = 0; // for incoming serial data
+int incoming_Debug_Byte = 0; // for incoming Debug serial data
+int incoming_FMS_Byte = 0; // for incoming FMS serial data
 int int_Calibrate = 0; // for incoming serial data
 bool signOfLifePi = false;
 bool signOfLifePi_State = false;
 
 void loop(){
    long int currentTime = millis();
-   // Check if the other Arduino is transmitting
-  if (Serial1_FMS_Amp.available()) {
-   
-  }
 
-  if (Serial_Debug.available() > 0) {
+   // Check the Debug serial port
+   if (Serial_Debug.available() > 0) {
       // read the incoming byte:
       // send a 9 to the console to start Calibration Mode
       // Send a 0-numver of sensors to sellect the desired sensor
       // Send a 8 to end calibration
-      incomingByte = Serial_Debug.read();
-      
-      if(((incomingByte) == '\r' || (incomingByte) == '\n')){
+      incoming_Debug_Byte = Serial_Debug.read();
+        
+      if(((incoming_Debug_Byte) == '\r' || (incoming_Debug_Byte) == '\n')){
          //Do Nothing
       }else{
+         //Check if incomming byto is a calibration command
          //Convert to int
-         int_Calibrate = incomingByte - '0';
+         int_Calibrate = incoming_Debug_Byte - '0';
          if(int_Calibrate == 9){
             EN_CALIBRATE_PLOT = true;           
          }else if(int_Calibrate == 8){
@@ -383,8 +411,60 @@ void loop(){
             configerSensorLED(true);           
          }
       }
-  }
+   }
 
+   //Check the FMS Serial Port
+   recvWithEndMarker();
+   if (newData == true) {
+       //Serial.print("This just in ... ");
+       //Serial.println(receivedChars);
+
+      // read the incoming byte:
+      //incomingByte = Serial1.parseInt();
+      incoming_FMS_Byte = 0;
+      incoming_FMS_Byte = atoi(receivedChars);
+
+      Serial_Debug.print("incoming Number: ");
+      Serial_Debug.println(incoming_FMS_Byte);
+
+      newData = false;
+      
+      signOfLifePi = true;
+   
+      if(((incoming_FMS_Byte) == '\r' || (incoming_FMS_Byte) == '\n')){
+         //Do Nothing
+      }else{
+         //Check if incoming Byte is Match State
+         if((incoming_FMS_Byte) >= 20 & (incoming_FMS_Byte <= 29)){
+            matchState_int = incoming_FMS_Byte;
+            Serial_Debug.print("Incoming  matchState_int: ");
+            Serial_Debug.println(matchState_int);
+         }
+
+         //Check if incoming Byte is BankedAmpNotes
+         if((incoming_FMS_Byte >= 30) & (incoming_FMS_Byte <= 39)){
+            bankedAmpNotes_int = incoming_FMS_Byte;
+         }
+         /* if((incoming_FMS_Byte >= 40) & (incoming_FMS_Byte <= 49)){
+            speakerState_int = incoming_FMS_Byte;
+         }
+         if((incoming_FMS_Byte >= 50) & (incoming_FMS_Byte <= 59)){
+            coopState_int = incoming_FMS_Byte;
+         }
+          if((incoming_FMS_Byte >= 100) & (incoming_FMS_Byte <= 200)){
+            Serial_Debug.println("*****************");
+            float num = (incoming_FMS_Byte-100);
+            Serial_Debug.print("num: ");
+            Serial_Debug.println(num);
+            if(speakerState_int != 40 ){
+               amp_percent = float( (incoming_FMS_Byte-100)/100.0);
+               Serial_Debug.print("amp_percent: ");
+               Serial_Debug.println(amp_percent);
+            }
+            
+         } */
+      }
+   }
    //set the led backgound color
    MatchState_LEDs = setMatchStateLED(matchState_int);
 
@@ -432,7 +512,7 @@ void loop(){
          };   
       }
    
-      switch (ampState_int){
+      switch (bankedAmpNotes_int){
       case 31: //
          fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
          break;
