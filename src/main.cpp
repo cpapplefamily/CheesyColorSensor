@@ -1,72 +1,69 @@
 #include <Arduino.h>
 #include "FastLED.h"
+//#include <Servo.h>
+#include <Adafruit_TiCoServo.h>
+#include <ArduinoJson.h>
 
+#define ALLIANCE CRGB::Red
+//#define ALLIANCE CRGB::Blue
 
-#define NUM_LEDS      10
+#define test_Note_ID_Pin 5
+//Servo myservo;  // create servo object to control a servo
+Adafruit_TiCoServo myservo;  // create servo object to control a servo
+
+#define PWM_PIN        2
+int potpin = A0;  // analog pin used to connect the potentiometer
+int val;
+
+//LEDs start at count 0
+#define NUM_LEDS      200
+#define NUM_AMP1_LEDS_START 1
+#define NUM_AMP1_LEDS_LEN   46
+#define NUM_AMP2_LEDS_START 47
+#define NUM_AMP2_LEDS_LEN   46 //last LED 92
+#define NUM_COOP_LEDS_START 93
+#define NUM_COOP_LEDS_LEN   48 //Last LED 139
+#define NUM_SPEAKER_LEDS_START 140
+#define NUM_SPEAKER_LEDS_LEN   48 //Last LED 139
+
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
 #define DATA_PIN        3
 //#define CLK_PIN       4
-#define VOLTS          5
+#define VOLTS           5
 #define MAX_MA       1000
 
 //Sensor 1
-#define led_EN_1 8
-#define s2_1 10
-#define s3_1 9
-#define out_1 11
+#define led_EN_1  8
+#define s2_1      10
+#define s3_1      9
+#define out_1     11
 
 //Sensor 2
-#define led_EN_2 4
-#define s2_2 6
-#define s3_2 5
-#define out_2 7
+#define led_EN_2  4
+#define s2_2      6
+#define s3_2      5
+#define out_2     7
 
-//Sensor 3
-#define led_EN_3 17
-#define s2_3 15
-#define s3_3 16
-#define out_3 14
+//Cooperation Button
+#define coopBTN_led 26
+#define coopBTN_input 27
 
-//Sensor 4
-#define led_EN_4 21
-#define s2_4 19
-#define s3_4 20
-#define out_4 18
+//Cooperation Button
+#define amplifyBTN_led 28
+#define amplifyBTN_input 29
 
-//Sensor 5
-#define led_EN_5 29
-#define s2_5 27
-#define s3_5 28
-#define out_5 26
+#define NUM_AMP_SENSORS 1
 
-//Sensor 6
-#define led_EN_6 33
-#define s2_6 31
-#define s3_6 32
-#define out_6 30
+#define LOWER_SCALE_LIM 0
+#define UPPER_SCALE_LIM 100
 
-//Sensor 7
-#define led_EN_7 37
-#define s2_7 35
-#define s3_7 36
-#define out_7 34
+#define SIGN_OF_LIFE_AR 140
+#define SIGN_OF_LIFE_PI SIGN_OF_LIFE_AR + 1
 
-//Sensor 8
-#define led_EN_8 41
-#define s2_8 39
-#define s3_8 40
-#define out_8 38
-
-#define NUM_UPPER_SENSORS 4
-#define NUM_LOWER_SENSORS 4
-
-#define SIGN_OF_LIFE_AR 0
-#define SIGN_OF_LIFE_PI 1
-#define UPPER_LED_START 2
-#define LOWER_LED_START 6
 
 boolean EN_CALIBRATE_PLOT = false;
+
 
 enum SensorState {
                   NONE,
@@ -74,95 +71,134 @@ enum SensorState {
                   BLUE,
                   GREEN
                   };
-//Eight storage location for the sensor States
-SensorState upperSensorState[NUM_UPPER_SENSORS];
-SensorState upperSensorScored_ONS[NUM_UPPER_SENSORS];
-SensorState lowerSensorState[NUM_LOWER_SENSORS];
-SensorState lowerSensorScored_ONS[NUM_LOWER_SENSORS];
 
-//int upperFilter[NUM_UPPER_SENSORS][10];
-//int lowerFilter[NUM_LOWER_SENSORS][10];
+enum MatchState {
+               PreMatch,         // 20
+               StartMatch,       // 21
+               WarmupPeriod,     // 22
+               AutoPeriod,       // 23
+               PausePeriod,      // 24
+               TeleopPeriod,     // 25
+               PostMatch,        // 26
+               TimeoutActive,    // 27
+               PostTimeout,      // 28
+               None              // 29
+               };
+
+/*
+matchState_char_msg_map = {
+    "0": '20',
+    "1": '21',
+    "2": '22',
+    "3": '23',
+    "4": '24',
+    "5": '25',
+    "6": '26',
+    "7": '27',
+    "8": '28',
+    "9": '29'
+}
+
+ampState_char_msg_map = {
+    "0": '30',
+    "1": '31',
+    "2": '32'
+}
+
+speakerState_char_msg_map = {
+    "0": '40',
+    "1": '41',
+    "2": '42'
+}
+
+coopState_char_msg_map = {
+    "0": '50',
+    "1": '51'
+}
+*/
+
+CRGB MatchState_LEDs = CRGB::Black;
+int matchState_int; //Not set
+int ampState_int;
+int coopState_int;
+int speakerState_int;
+
+//Eight storage location for the sensor States
+SensorState ampSensorState[NUM_AMP_SENSORS];
+SensorState ampSensorScored_ONS[NUM_AMP_SENSORS];
+
 
 #include "ColorTrigger.h"
 
-ColorTrigger upperTrigger[NUM_UPPER_SENSORS];
-ColorTrigger lowerTrigger[NUM_LOWER_SENSORS];
+ColorTrigger ampTrigger[NUM_AMP_SENSORS];
+
 
 #include "Debouncer.h"
-double debounceTime = 500;
+double debounceTime_RED = 60;  //Sensor must be on or off
+double debounceTime_BLUE = 60;  //Sensor must be on or off
 Debouncer::DebounceType debounceType = Debouncer::DebounceType::kBoth;
 
-Debouncer upperDebounceRED[NUM_UPPER_SENSORS] = {
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}
-                                             };
-Debouncer upperDebounceBLUE[NUM_UPPER_SENSORS] = {
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}
-                                             };
-Debouncer lowerDebounceRED[NUM_LOWER_SENSORS] = {
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}
-                                             };
-Debouncer lowerDebounceBLUE[NUM_LOWER_SENSORS] = {
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}, 
-                                             {debounceTime, debounceType}
+Debouncer debouncAMP[NUM_AMP_SENSORS] = {
+                                             {debounceTime_RED, debounceType}
                                              };
 
+
+
+//**********************//
+// Set Up Color sensors //
+//**********************//
 int reddata=0;        
 int bluedata=0;   
 
 #include "GY_31.h"
+unsigned long timeout_micros = 5000;// 2000 = 2.00ms//unsigned long = 1000000UL
 
-GY_31 upperSensors[] = {  
-                     {s2_1, s3_1, out_1, led_EN_1}, 
-                     {s2_2, s3_2, out_2, led_EN_2}, 
-                     {s2_3, s3_3, out_3, led_EN_3}, 
-                     {s2_4, s3_4, out_4, led_EN_4}};
-GY_31 lowerSensors[] = { 
-                     {s2_5, s3_5, out_5, led_EN_5}, 
-                     {s2_6, s3_6, out_6, led_EN_6}, 
-                     {s2_7, s3_7, out_7, led_EN_7}, 
-                     {s2_8, s3_8, out_8, led_EN_8}};
+GY_31 ampSensors[] = {  
+                     {s2_1, s3_1, out_1, led_EN_1, timeout_micros},
+                     {s2_2, s3_2, out_2, led_EN_2, timeout_micros}
+                     
+                     };
 
+
+//**********************//
+// Set Up led strip     //
+//**********************//
 CRGBArray<NUM_LEDS> leds;
 
 
 //REturn the Sensor State and set the LED color CGRB byReference
-SensorState getSensorState(GY_31 sensor, CRGB& led){
+//SensorState getSensorState(GY_31 sensor, CRGB& led){
+ 
+bool plot_raw_data = false;
+//REturn the Sensor State
+SensorState getSensorState(GY_31 sensor){
    SensorState state;
-
+   
    //Get Sensor Color Reading
-   reddata=map(sensor.getRED(),700,75,0,100);
-   bluedata=map(sensor.getBLUE(),700,75,0,100);
-
-   // the lower value for easier plotting. Value idiles @ -300
-   if(reddata<-10){
-      reddata = -10;
+   if(plot_raw_data){
+      reddata=sensor.getRED();
+      bluedata=sensor.getBLUE();
+   }else{
+      reddata=map(sensor.getRED(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
+      bluedata=map(sensor.getBLUE(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
+      // the lower value for easier plotting. Value idiles @ -300
+      // valus above Upper scale limit indicates no sensor
+      if(reddata<-10 | reddata > UPPER_SCALE_LIM){
+         //reddata = -10;
+      }
+      if(bluedata<-10 | bluedata > UPPER_SCALE_LIM){
+       //bluedata = -10;
+      }
    }
-   if(bluedata<-10){
-      bluedata = -10;
-   }
-
+   
    //Set some Trigger Threasholds
-   int redThresh = 50;
-   int blueThresh = 50;
+   int redThresh = 95;
+   int blueThresh = 90;
    if((reddata > redThresh) & (reddata > bluedata)){
-      led = CRGB::Red;
       state = SensorState::RED;
    }else if((bluedata > blueThresh) & (bluedata > reddata)){
-      led = CRGB::Blue;
       state = SensorState::BLUE;
    }else{
-      led = CRGB::Black;
       state = SensorState::NONE;
    }
    if(EN_CALIBRATE_PLOT){
@@ -174,10 +210,26 @@ SensorState getSensorState(GY_31 sensor, CRGB& led){
    return state;
 }
 
-
+void configerSensorLED(boolean Enable_All){
+   //Set sensor state and turn on all LED's
+   for(int i=0; i<NUM_AMP_SENSORS ; i++){
+      ampSensorState[i] = SensorState::NONE; 
+      ampSensorScored_ONS[i] = SensorState::NONE; 
+      ampTrigger[i].reset();
+      ampSensors[i].enableLEDs(Enable_All);
+   }   
+      
+}
 void setup() {
-   //Open a serial port, currently for debugging but will be used for Arduino > RassperyPi > FMS data transfer
-   Serial.begin(9600); 
+   // Initialize "debug" serial port
+  // The data rate must be much higher than the "link" serial port
+   Serial.begin(115200);
+
+   // Initialize the "link" serial port
+   // Use a low data rate to reduce the error ratio
+   Serial1.begin(9600);
+
+   myservo.attach(PWM_PIN);  // attaches the servo on PWM_PIN to the servo object
 
    boolean Enable_All;
    if(EN_CALIBRATE_PLOT){
@@ -186,55 +238,80 @@ void setup() {
       Enable_All = true;
    }
    //Set sensor state and turn on all LED's
-   for(int i=0; i<NUM_UPPER_SENSORS ; i++){
-      upperSensorState[i] = SensorState::NONE; 
-      upperSensorScored_ONS[i] = SensorState::NONE; 
-      upperTrigger[i].reset();
-      upperSensors[i].enableLEDs(Enable_All);
-   }   
-      
-    
-   for(int i=0; i<NUM_LOWER_SENSORS ; i++){
-      lowerSensorState[i] = SensorState::NONE; 
-      lowerSensorScored_ONS[i] = SensorState::NONE; 
-      lowerTrigger[i].reset();
-      lowerSensors[i].enableLEDs(Enable_All);
-   }   
-     
+   configerSensorLED(Enable_All);
+
+   matchState_int = 99;
+   ampState_int = 99;
+   coopState_int = 99;
+   speakerState_int = 99;
     
    //Set up RGB LED strip lights
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
    FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
    FastLED.setBrightness(10);
+ 
+   //Set up coop buttons
+   pinMode(coopBTN_led,OUTPUT);
+   pinMode(coopBTN_input,INPUT_PULLUP);
+   
+   //Set up amplify buttons
+   pinMode(amplifyBTN_led,OUTPUT);
+   pinMode(amplifyBTN_input,INPUT_PULLUP);
+
 }
 
 void Setup_CALIBRATE_PLOT(int incomingByte){
    for(int i=0; i<NUM_LEDS; i++){
       leds[i] = CRGB::Black;
    }
-   for(int i=0; i<NUM_UPPER_SENSORS ; i++){
-         upperSensorState[i] = SensorState::NONE; 
-         upperSensorScored_ONS[i] = SensorState::NONE; 
-         upperTrigger[i].reset();
-         upperSensors[i].enableLEDs(false);
-   }
-   for(int i=0; i<NUM_LOWER_SENSORS ; i++){
-      lowerSensorState[i] = SensorState::NONE; 
-      lowerSensorScored_ONS[i] = SensorState::NONE; 
-      lowerTrigger[i].reset();
-      lowerSensors[i].enableLEDs(false);
-   }  
-   if((incomingByte>=0) & (incomingByte<=3)){
-      upperSensors[incomingByte].enableLEDs(true);
+
+   configerSensorLED(false); 
+
+   if((incomingByte>=0) & (incomingByte <= (NUM_AMP_SENSORS - 1))){
+      ampSensors[incomingByte].enableLEDs(true);
       Serial.println("Upper");
    }
 
-   if((incomingByte>=4) & (incomingByte<=7)){
-      Serial.println("Lower");
-      lowerSensors[incomingByte - 4].enableLEDs(true);
+}
+/**
+ * @param fill //Start of fill
+ * @param block //Length of block
+*/
+void fill_Block(int fill, int block, CRGB color){
+   for(int l=fill; l < (fill+block); l++){
+      leds[l] = color;
+    }
+}
+
+CRGB setMatchStateLED(int matchState){
+   switch (matchState){
+      case 20: //PreMatch
+         return CRGB::Green;
+         break;
+      case 21 ... 25: //StartMatch
+         return CRGB::Black;
+         break;
+      case 26: // PostMatch
+         return CRGB::Violet;
+         break;
+      case 27 ... 28: // TimeoutActive
+         return CRGB::Black;
+         break;
+      default:
+         return CRGB::Black;
+         break;
    }
 }
 
+void run_Agitator(boolean run){
+   if(run){
+      val = analogRead(potpin);            // reads the value of the potentiometer (value between 0 and 1023)
+      val = map(val, 0, 1023, 45, 135);     // scale it for use with the servo (value between 0 and 180)
+   }else{
+      val = 90;
+   }
+   myservo.write(val);   
+}
 
 /**
  * Main Loop
@@ -247,131 +324,206 @@ long int currentTime = 0;
 boolean hartBeat = false;
 
 /* goal_char_msg_map = {
-    "S": '{ "type": "RU" }',
-    "X": '{ "type": "RL" }',
-    "Y": '{ "type": "BU" }',
-    "H": '{ "type": "BL" }'
+    "W": '{ "type": "W" }',
+    "R": '{ "type": "R" }',
+    "P": '{ "type": "P" }',
+    "O": '{ "type": "O" }
 } */
 int incomingByte = 0; // for incoming serial data
 int int_Calibrate = 0; // for incoming serial data
 bool signOfLifePi = false;
-bool signOfLifePi_ONS = false;
-bool signOfLifePi_ACTIVE = false;
+bool signOfLifePi_State = false;
 
 void loop(){
    long int currentTime = millis();
+   // Check if the other Arduino is transmitting
+  if (Serial1.available()) 
+  {
+    // Allocate the JSON document
+    // This one must be bigger than the sender's because it must store the strings
+    StaticJsonDocument<500> doc;
 
-   if (Serial.available() > 0) {
-      // read the incoming byte:
-      incomingByte = Serial.read();
-      if(((incomingByte) == '\r' || (incomingByte) == '\n')){
-         //Do Nothing
-      }else{
-         //Convert to int
-         int_Calibrate = incomingByte - '0';
-         if(int_Calibrate == 9){
-            EN_CALIBRATE_PLOT = true;
-         }else if(int_Calibrate == 8){
-            EN_CALIBRATE_PLOT = false;            
-         }
-      }
-      if(EN_CALIBRATE_PLOT){
-         Setup_CALIBRATE_PLOT(int_Calibrate);
-      }
-      signOfLifePi = true;
+    // Read the JSON document from the "link" serial port
+    DeserializationError err = deserializeJson(doc, Serial1);
+
+    if (err == DeserializationError::Ok) 
+    {
+      // Print the values
+      // (we must use as<T>() to resolve the ambiguity)
+      String output;
+      serializeJson(doc, output);
+      Serial.println("From the Debuger");
+      Serial.print("size ");
+      Serial.println(doc.size());
+      Serial.println(output);
+      Serial.print("Bytes ");
+      Serial.println(output.length());
+      matchState_int = doc["ms"].as<int>();
+      Serial.print("ms : ");
+      Serial.println(matchState_int);
+
+      // Flush all bytes in the "link" serial port buffer
+      while (Serial1.available() > 0)
+        Serial1.read();
+    } 
+    else 
+    {
+      // Print error to the "debug" serial port
+      Serial.print("deserializeJson() returned ");
+      Serial.println(err.c_str());
+  
+      // Flush all bytes in the "link" serial port buffer
+      while (Serial1.available() > 0)
+        Serial1.read();
+    }
+  }
+/* }
+void newloop(){   */
+   //set the led backgound color
+   MatchState_LEDs = setMatchStateLED(matchState_int);
+
+   // Run Agitator if match running
+   if(matchState_int>20 & matchState_int<26){
+         run_Agitator(true);
+   }else{
+      run_Agitator(false);
    }
 
    if(EN_CALIBRATE_PLOT){
-      if((int_Calibrate>=0) & (int_Calibrate<=3)){
-         upperSensorState[int_Calibrate] = getSensorState(upperSensors[int_Calibrate], leds[int_Calibrate + UPPER_LED_START]);
+      if((int_Calibrate>=0) & (int_Calibrate <= (NUM_AMP_SENSORS - 1))){
+         ampSensorState[int_Calibrate] = getSensorState(ampSensors[int_Calibrate]);
       }   
    }else{
       //Loop through upper sensors
-      //for(int i=0; i < 1 ; i++){
-      for(int i=0; i < NUM_UPPER_SENSORS ; i++){
-         upperSensorState[i] = getSensorState(upperSensors[i], leds[i + UPPER_LED_START]);
+      for(int i=0; i < NUM_AMP_SENSORS ; i++){
 
-         //Serial.println(upperSensorState[i]);
+         long int startsence = micros();  //For Time diagnostics
+
+         ampSensorState[i] = getSensorState(ampSensors[i]);
       
-         if(upperDebounceRED[i].calculate((upperSensorState[i] == SensorState::RED))){
+         boolean printSensor_time = false;
+         if((i == 3) & (printSensor_time)){ 
+            Serial.print("Sensor 3 ");
+            Serial.print(micros() - startsence);
+            Serial.println(" us");
+         }
+      
+         if(debouncAMP[i].calculate((ampSensorState[i] == SensorState::RED))){
             //Serial.println("Is red");
-            if((upperSensorScored_ONS[i]!= SensorState::RED)){
+            if((ampSensorScored_ONS[i]!= SensorState::RED)){
                //Serial.println("**********RED**************");
-               Serial.print("S");
-               upperSensorScored_ONS[i]= SensorState::RED;
+               Serial1.print("R");
+               ampSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
-            }
-         }else if(upperDebounceBLUE[i].calculate((upperSensorState[i] == SensorState::BLUE))){
-            //Serial.println("Is blue");
-            if((upperSensorScored_ONS[i]!= SensorState::BLUE)){
-               //Serial.println("**********BLUE**************");
-               Serial.print("Y");
-               upperSensorScored_ONS[i]= SensorState::BLUE;
-               //delay(3000);
+               //fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, CRGB::Red); 
+               leds[0] = ALLIANCE;
             }
             
          }else{
-            upperSensorScored_ONS[i]= SensorState::NONE;
+            ampSensorScored_ONS[i]= SensorState::NONE;
+            //fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, MatchState_LEDs);  
+            leds[0] = CRGB::Black;   
          };   
       }
-   }
-
-   if(EN_CALIBRATE_PLOT){
-      if((int_Calibrate>=4) & (int_Calibrate<=7)){
-         lowerSensorState[int_Calibrate - 4] = getSensorState(lowerSensors[int_Calibrate - 4], leds[int_Calibrate - 4 + LOWER_LED_START]);
-      }   
-   }else{
-      //Loop through lower sensors
-      for(int i=0; i <NUM_LOWER_SENSORS ; i++){
-         lowerSensorState[i] = getSensorState(lowerSensors[i], leds[i + LOWER_LED_START]);
-         
-         //Serial.println(lowerSensorState[i]);
-
-         if(lowerDebounceRED[i].calculate((lowerSensorState[i] == SensorState::RED))){
-            //Serial.println("Is red");
-            if((lowerSensorScored_ONS[i]!= SensorState::RED)){
-            // Serial.println("**********RED**************");
-               Serial.print("X");
-               lowerSensorScored_ONS[i]= SensorState::RED;
-               //delay(3000);
-            }
-         }else if(lowerDebounceBLUE[i].calculate((lowerSensorState[i] == SensorState::BLUE))){
-            //Serial.println("Is blue");
-            if((lowerSensorScored_ONS[i]!= SensorState::BLUE)){
-               //Serial.println("**********BLUE**************");
-               Serial.print("H");
-               lowerSensorScored_ONS[i]= SensorState::BLUE;
-               //delay(3000);
-            }
-            
-         }else{
-            lowerSensorScored_ONS[i]= SensorState::NONE;
-         };      
+   
+      switch (ampState_int){
+      case 31: //
+         fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
+         break;
+      case 32: //
+         fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
+         fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, ALLIANCE);
+         break;
+      default:
+         fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, MatchState_LEDs);
+         fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
+         break;
       }
+
+      
+      switch (coopState_int){
+      case 41: //
+         fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, CRGB::Yellow);
+         break;
+      default:
+         fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, MatchState_LEDs);
+         break;
+      }
+
+      switch (speakerState_int){
+      case 51:
+         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, ALLIANCE);
+         break;
+      default:
+         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
+         break;
+      }
+      
+
    }
-   //Flip Hartbeat LED
+
+   //****************************************************TEMP
+   if (!digitalRead(coopBTN_input)){
+      digitalWrite(coopBTN_led, HIGH);
+      leds[test_Note_ID_Pin] = CRGB::Red;
+      Serial1.print("O");
+   }else{
+      leds[test_Note_ID_Pin] = CRGB::Black;
+      digitalWrite(coopBTN_led, LOW);
+   }
+   if (!digitalRead(amplifyBTN_input)){
+      digitalWrite(amplifyBTN_led, HIGH);
+      leds[test_Note_ID_Pin] = CRGB::Red;
+      Serial1.print("A");
+   }else{
+      leds[test_Note_ID_Pin] = CRGB::Black;
+      digitalWrite(amplifyBTN_led, LOW);
+   }
+   //***********************************************************
+  
+   //Sing Of Life Arduino
+   CRGB SOL = CRGB::White;
+   long int now = millis();
+   //Hartbeat LED Color
+   if((now - currentTime)>=50){
+      SOL = CRGB::Red;
+   }else if ((now - currentTime)>=25){
+      SOL = CRGB::Yellow;
+   }else{
+      SOL = CRGB::White;
+   }
+
    if(currentTime > hartBeatTck){
       hartBeatTck = currentTime + 500;
       hartBeat = !hartBeat;
    }
 
    if(hartBeat){
-      leds[SIGN_OF_LIFE_AR] = CRGB::White;
-      if(signOfLifePi & !signOfLifePi_ONS){
-         leds[SIGN_OF_LIFE_PI] = CRGB::Green;
-         signOfLifePi_ACTIVE = true;
-      }
-      signOfLifePi_ONS = true;
+      leds[SIGN_OF_LIFE_AR] = SOL;
    }else{
       leds[SIGN_OF_LIFE_AR] = CRGB::Black;
-      if(signOfLifePi & signOfLifePi_ACTIVE){
-         signOfLifePi = false;
-         signOfLifePi_ONS = false;
-         signOfLifePi_ACTIVE = false;
-         leds[SIGN_OF_LIFE_PI] = CRGB::Black;
-      }
    }
 
+   //Sing Of Life Raspberry Pi
+   if(signOfLifePi){
+      signOfLifePi_State = !signOfLifePi_State;
+      signOfLifePi = false;
+   }
+
+   if(signOfLifePi_State){
+      leds[SIGN_OF_LIFE_PI] = CRGB::White;
+   }else{
+      leds[SIGN_OF_LIFE_PI] = CRGB::Black;
+   }
+
+   // Show Match state on LEDs 3-10
+   //leds[matchState_int-18] = CRGB::White;
+
    FastLED.show();
-   delay(20);
+   
+   //As of 8/4/2022 this program ran at 20ms This assures this is the min
+   while((millis() - currentTime)<20){}
+   
+   //ToDo add warning if over ?ms
 }
+
