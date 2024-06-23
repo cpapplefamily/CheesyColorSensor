@@ -7,8 +7,8 @@
 #define Serial1_FMS_Amp Serial1
 #define Serial_Debug Serial
 
-#define ALLIANCE CRGB::Red
-//#define ALLIANCE CRGB::Blue
+//#define ALLIANCE CRGB::Red
+#define ALLIANCE CRGB::Blue
 
 #define test_Note_ID_Pin 5
 //Servo myservo;  // create servo object to control a servo
@@ -35,6 +35,18 @@ int val;
 //#define CLK_PIN       4
 #define VOLTS           5
 #define MAX_MA       1000
+
+//Sensor Freq Scaling
+#define S0pin  31
+#define S1pin  30
+/* S0 S1 
+      L  L  Power Down  0
+      L  H  2%          1
+      H  L  20%         2
+      H  H  100%        3*/
+int sensorPowerScale = 1;
+int redThresh = 95;
+int blueThresh = 90;
 
 //Sensor 1
 #define led_EN_1  8
@@ -195,8 +207,6 @@ SensorState getSensorState(GY_31 sensor){
    }
    
    //Set some Trigger Threasholds
-   int redThresh = 95;
-   int blueThresh = 90;
    if((reddata > redThresh) & (reddata > bluedata)){
       state = SensorState::RED;
    }else if((bluedata > blueThresh) & (bluedata > reddata)){
@@ -242,6 +252,16 @@ void setup() {
    }
    //Set sensor state and turn on all LED's
    configerSensorLED(Enable_All);
+   pinMode(S0pin,OUTPUT);
+   pinMode(S1pin,OUTPUT);
+   /* S0 S1 
+      L  L  Power Down  0
+      L  H  2%          1
+      H  L  20%         2
+      H  H  100%        3*/
+   
+   digitalWrite(S0pin, (sensorPowerScale >> 0) & 1);
+   digitalWrite(S1pin, (sensorPowerScale >> 1) & 1);
 
    matchState_int = 99;
    ampState_int = 99;
@@ -340,48 +360,31 @@ bool signOfLifePi_State = false;
 void loop(){
    long int currentTime = millis();
    // Check if the other Arduino is transmitting
-  if (Serial1_FMS_Amp.available()) 
-  {
-    // Allocate the JSON document
-    // This one must be bigger than the sender's because it must store the strings
-    StaticJsonDocument<500> doc;
-
-    // Read the JSON document from the "link" serial port
-    DeserializationError err = deserializeJson(doc, Serial1_FMS_Amp);
-
-    if (err == DeserializationError::Ok) 
-    {
-      // Print the values
-      // (we must use as<T>() to resolve the ambiguity)
-      String output;
-      serializeJson(doc, output);
-      Serial_Debug.println("From the Debuger");
-      Serial_Debug.print("size ");
-      Serial_Debug.println(doc.size());
-      Serial_Debug.println(output);
-      Serial_Debug.print("Bytes ");
-      Serial_Debug.println(output.length());
-      matchState_int = doc["ms"].as<int>();
-      Serial_Debug.print("ms : ");
-      Serial_Debug.println(matchState_int);
-
-      // Flush all bytes in the "link" serial port buffer
-      while (Serial1_FMS_Amp.available() > 0)
-        Serial1_FMS_Amp.read();
-    } 
-    else 
-    {
-      // Print error to the "debug" serial port
-      Serial_Debug.print("deserializeJson() returned ");
-      Serial_Debug.println(err.c_str());
-  
-      // Flush all bytes in the "link" serial port buffer
-      while (Serial1_FMS_Amp.available() > 0)
-        Serial1_FMS_Amp.read();
-    }
+  if (Serial1_FMS_Amp.available()) {
+   
   }
-/* }
-void newloop(){   */
+
+  if (Serial_Debug.available() > 0) {
+      // read the incoming byte:
+      // send a 9 to the console to start Calibration Mode
+      // Send a 0-numver of sensors to sellect the desired sensor
+      // Send a 8 to end calibration
+      incomingByte = Serial_Debug.read();
+      
+      if(((incomingByte) == '\r' || (incomingByte) == '\n')){
+         //Do Nothing
+      }else{
+         //Convert to int
+         int_Calibrate = incomingByte - '0';
+         if(int_Calibrate == 9){
+            EN_CALIBRATE_PLOT = true;           
+         }else if(int_Calibrate == 8){
+            EN_CALIBRATE_PLOT = false; 
+            configerSensorLED(true);           
+         }
+      }
+  }
+
    //set the led backgound color
    MatchState_LEDs = setMatchStateLED(matchState_int);
 
@@ -399,14 +402,14 @@ void newloop(){   */
    }else{
       //Loop through upper sensors
       for(int i=0; i < NUM_AMP_SENSORS ; i++){
-
+      
          long int startsence = micros();  //For Time diagnostics
 
          ampSensorState[i] = getSensorState(ampSensors[i]);
       
          boolean printSensor_time = false;
-         if((i == 3) & (printSensor_time)){ 
-            Serial_Debug.print("Sensor 3 ");
+         if((i == 0) & (printSensor_time)){ 
+            Serial_Debug.print("Sensor 0 ");
             Serial_Debug.print(micros() - startsence);
             Serial_Debug.println(" us");
          }
