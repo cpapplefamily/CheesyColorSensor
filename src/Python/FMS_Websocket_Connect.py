@@ -19,14 +19,17 @@ PASSWORD = 'ProliantDL160'
 isWindows = False #Set when Testing with out RaspberryPi
 usingArduino = True # When I Don't have an Arduino Connected
 updateArduino = False
-CoopActivated = False
+current_coopActivated = False
+last_coopActivated = False
 curent_bankedAmpNotes = 0
 last_bankedAmpNotes = 2 #this forces a message
-AmplifiedTimePostWindow = False
+current_amplifiedTimePostWindow = False
+last_amplifiedTimePostWindow = False
 curent_matchState = '9'
 last_matchState = '0'
 en_Serial_Print = True
-AmplifiedTimeRemainingSec = 0
+current_amplifiedTimeRemainingSec = 0
+last_amplifiedTimeRemainingSec = 0
        
 
 goal_char_msg_map = {
@@ -55,15 +58,28 @@ bankedAmpNotes_char_msg_map = {
     "2": '32'
 }
 
-speakerState_char_msg_map = {
-    "0": '40',
-    "1": '41',
-    "2": '42'
+amplifiedTimePostWindow_char_msg_map = {
+    "False": '40',
+    "True" : '41'
 }
 
-coopState_char_msg_map = {
-    "0": '50',
-    "1": '51'
+coopActivated_char_msg_map = {
+    "False": '50',
+    "True": '51'
+}
+
+amplifiedTimeRemainingSec_char_msg_map = {
+    "10": '110',
+    "9" : '109',
+    "8" : '108',
+    "7" : '107',
+    "6" : '106',
+    "5" : '105',
+    "4" : '104',
+    "3" : '103',
+    "2" : '102',
+    "1" : '101',
+    "0" : '100'
 }
 
 # Return the first arduino mega connected to PC
@@ -97,6 +113,15 @@ def get_msg_from_MatchState_char(MatchStat_char):
 def get_msg_from_BankedAmpNotes_char(BankedAmpNotes_char):
     return bankedAmpNotes_char_msg_map[BankedAmpNotes_char]
 
+def get_msg_from_CoopActivated_char(CoopActivated_char):
+    return coopActivated_char_msg_map[CoopActivated_char]
+
+def get_msg_from_AmplifiedTimeRemainingSec_char(AmplifiedTimeRemainingSec_char):
+    return amplifiedTimeRemainingSec_char_msg_map[AmplifiedTimeRemainingSec_char]
+
+def get_msg_from_AmplifiedTimePostWindow_char(AmplifiedTimePostWindow_char):
+    return amplifiedTimePostWindow_char_msg_map[AmplifiedTimePostWindow_char]
+
 def int_to_bytes(x: int) -> bytes:
     return x.to_bytes((x.bit_length() + 7) // 8, 'big')
 
@@ -107,11 +132,14 @@ def get_on_ws_open_callback(usb_connection):
         def run(*args):
             global curent_matchState
             global last_matchState
-            global CoopActivated
+            global current_coopActivated
+            global last_coopActivated
             global curent_bankedAmpNotes
             global last_bankedAmpNotes
-            global AmplifiedTimePostWindow
-            global AmplifiedTimeRemainingSec
+            global current_amplifiedTimePostWindow
+            global last_amplifiedTimePostWindow
+            global current_amplifiedTimeRemainingSec
+            global last_amplifiedTimeRemainingSec
             global updateArduino
 
             while(True):
@@ -128,6 +156,10 @@ def get_on_ws_open_callback(usb_connection):
                 else:
                     if(updateArduino):
                         #print('update Arduino')
+                        """ last_bankedAmpNotes = 99
+                        last_coopActivated = False
+                        last_amplifiedTimeRemainingSec = 99
+                        last_amplifiedTimePostWindow = False """
                         updateArduino = False
                     #priority is match state
                     if(curent_matchState != last_matchState):
@@ -149,6 +181,33 @@ def get_on_ws_open_callback(usb_connection):
                         else:
                             print('bankedAmpNotes Error')
                         last_bankedAmpNotes = curent_bankedAmpNotes
+                    elif(current_coopActivated != last_coopActivated):
+                        print('coopActivated Changed')
+                        if (str(current_coopActivated) in coopActivated_char_msg_map):
+                            print(f'Info: sent to Arduino {get_msg_from_CoopActivated_char(str(current_coopActivated))}')
+                            message = get_msg_from_CoopActivated_char(str(current_coopActivated)) + '\n'
+                            usb_connection.write(bytes(message, 'utf-8'))
+                        else:
+                            print('coopActivated Error')
+                        last_coopActivated = current_coopActivated
+                    elif(current_amplifiedTimeRemainingSec != last_amplifiedTimeRemainingSec):
+                        print('amplifiedTimeRemainingSec Changed')
+                        if (str(current_amplifiedTimeRemainingSec) in amplifiedTimeRemainingSec_char_msg_map):
+                            print(f'Info: sent to Arduino {get_msg_from_AmplifiedTimeRemainingSec_char(str(current_amplifiedTimeRemainingSec))}')
+                            message = get_msg_from_AmplifiedTimeRemainingSec_char(str(current_amplifiedTimeRemainingSec)) + '\n'
+                            usb_connection.write(bytes(message, 'utf-8'))
+                        else:
+                            print('amplifiedTimeRemainingSec Error')
+                        last_amplifiedTimeRemainingSec = current_amplifiedTimeRemainingSec
+                    elif(current_amplifiedTimePostWindow != last_amplifiedTimePostWindow):
+                        print('amplifiedTimePostWindow Changed')
+                        if (str(current_amplifiedTimePostWindow) in amplifiedTimePostWindow_char_msg_map):
+                            print(f'Info: sent to Arduino {get_msg_from_AmplifiedTimePostWindow_char(str(current_amplifiedTimePostWindow))}')
+                            message = get_msg_from_AmplifiedTimePostWindow_char(str(current_amplifiedTimePostWindow)) + '\n'
+                            usb_connection.write(bytes(message, 'utf-8'))
+                        else:
+                            print('amplifiedTimePostWindow Error')
+                        last_amplifiedTimePostWindow = current_amplifiedTimePostWindow
             
 
         thread.start_new_thread(run, ())
@@ -159,10 +218,13 @@ def on_message(ws, message):
     global curent_matchState
     global last_matchState
     global en_Serial_Print
-    global CoopActivated
+    global current_coopActivated
+    global last_coopActivated
     global curent_bankedAmpNotes
-    global AmplifiedTimePostWindow
-    global AmplifiedTimeRemainingSec
+    global current_amplifiedTimePostWindow
+    global last_amplifiedTimePostWindow
+    global current_amplifiedTimeRemainingSec
+    global last_amplifiedTimeRemainingSec
     global updateArduino
     
     
@@ -180,6 +242,8 @@ def on_message(ws, message):
             print("Last MatchState: %s" % (last_matchState))
             print("Curent BankedAmpNotes: %s" % (curent_bankedAmpNotes))
             print("Last BankedAmpNotes: %s" % (last_bankedAmpNotes))
+            print("Curent CoopActivated: %s" % (current_coopActivated))
+            print("Last CoopActivated: %s" % (last_coopActivated))
         updateArduino = True
 
     if(data['type'] == 'matchTime'):
@@ -197,9 +261,9 @@ def on_message(ws, message):
         curent_matchState = data['data']['MatchState']
         allianceScore = data['data'][ALLIANCE_COLOR]['Score']
         curent_bankedAmpNotes = allianceScore["AmpSpeaker"]["BankedAmpNotes"]
-        CoopActivated = allianceScore["AmpSpeaker"]["CoopActivated"]
-        AmplifiedTimePostWindow = data['data'][ALLIANCE_COLOR]["AmplifiedTimePostWindow"]
-        AmplifiedTimeRemainingSec = data['data'][ALLIANCE_COLOR]["AmplifiedTimeRemainingSec"]
+        current_coopActivated = allianceScore["AmpSpeaker"]["CoopActivated"]
+        current_amplifiedTimePostWindow = data['data'][ALLIANCE_COLOR]["AmplifiedTimePostWindow"]
+        current_amplifiedTimeRemainingSec = data['data'][ALLIANCE_COLOR]["AmplifiedTimeRemainingSec"]
         #print("allianceScore = ", allianceScore)
         #if(en_Serial_Print):
         updateArduino = True
@@ -207,10 +271,10 @@ def on_message(ws, message):
             print('is realtimeScore')
             print("Curent MatchState: %s" % (curent_matchState))
             #print("allianceScore: %s" % (allianceScore))
-            print("BankedAmpNotes = ", curent_BankedAmpNotes)
-            print("CoopertitionStatus = ", CoopActivated)
-            print("AmplifiedTimePostWindow = ", AmplifiedTimePostWindow)
-            print("Amplification Sec Remaining = ",AmplifiedTimeRemainingSec)
+            print("BankedAmpNotes = ", curent_bankedAmpNotes)
+            print("CoopertitionStatus = ", current_coopActivated)
+            print("AmplifiedTimePostWindow = ", current_amplifiedTimePostWindow)
+            print("Amplification Sec Remaining = ",current_amplifiedTimeRemainingSec)
 
 def open_websocket(serial_connection):
     def reopen_websocket():
