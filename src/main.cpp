@@ -19,15 +19,17 @@ int potpin = A0;  // analog pin used to connect the potentiometer
 int val;
 
 //LEDs start at count 0
-#define NUM_LEDS      200
+#define NUM_LEDS      210
 #define NUM_AMP1_LEDS_START 1
 #define NUM_AMP1_LEDS_LEN   46
 #define NUM_AMP2_LEDS_START 47
 #define NUM_AMP2_LEDS_LEN   46 //last LED 92
 #define NUM_COOP_LEDS_START 93
 #define NUM_COOP_LEDS_LEN   48 //Last LED 139
-#define NUM_SPEAKER_LEDS_START 140
-#define NUM_SPEAKER_LEDS_LEN   48 //Last LED 139
+#define NUM_SPEAKER_WINDOW_LEDS_START 140
+#define NUM_SPEAKER_WINDOW_LEDS_LEN 4
+#define NUM_SPEAKER_TIMER_LEDS_START 140
+#define NUM_SPEAKER_LEDS_LEN   70 //Last LED 139
 
 #define LED_TYPE   WS2812B
 #define COLOR_ORDER   GRB
@@ -39,13 +41,13 @@ int val;
 //Sensor Freq Scaling
 #define S0pin  31
 #define S1pin  30
-/* S0 S1 
-      L  L  Power Down  0
-      L  H  2%          1
-      H  L  20%         2
-      H  H  100%        3*/
-int sensorPowerScale = 1;
-int redThresh = 95;
+/* S0 S1 descript    sensorPowerScale
+   L  L  Power Down  0
+   L  H  2%          1
+   H  L  20%         2
+   H  H  100%        3*/
+int sensorPowerScale = 2;
+int redThresh = 75;
 int blueThresh = 90;
 
 //Sensor 1
@@ -135,8 +137,10 @@ coopState_char_msg_map = {
 CRGB MatchState_LEDs = CRGB::Black;
 int matchState_int; //Not set
 int bankedAmpNotes_int;
-int coopState_int;
-int speakerState_int;
+int coopActivated_int;
+int amplifiedTimeRemainingSec_int;
+int amplifiedTimePostWindow_int;
+float amplifiedTimeRemaining_percent;
 
 //Eight storage location for the sensor States
 SensorState ampSensorState[NUM_AMP_SENSORS];
@@ -192,28 +196,45 @@ SensorState getSensorState(GY_31 sensor){
    //Get Sensor Color Reading
    if(plot_raw_data){
       reddata=sensor.getRED();
-      bluedata=sensor.getBLUE();
+      //bluedata=sensor.getBLUE();
    }else{
-      reddata=map(sensor.getRED(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
-      bluedata=map(sensor.getBLUE(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
+      //Map the data from the sensor from 0 to 100
+      switch(sensorPowerScale){
+         case 1:
+            reddata=map(sensor.getRED(),0,160,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
+            break;
+         case 2:
+            reddata=map(sensor.getRED(),0,1400,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
+            break;
+         case 3:
+            reddata=map(sensor.getRED(),1200,25,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
+            break;
+      }
+      //bluedata=map(sensor.getBLUE(),700,75,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
       // the lower value for easier plotting. Value idiles @ -300
       // valus above Upper scale limit indicates no sensor
       if(reddata<-10 | reddata > UPPER_SCALE_LIM){
          //reddata = -10;
       }
-      if(bluedata<-10 | bluedata > UPPER_SCALE_LIM){
+      //if(bluedata<-10 | bluedata > UPPER_SCALE_LIM){
        //bluedata = -10;
-      }
+      //}
    }
    
    //Set some Trigger Threasholds
-   if((reddata > redThresh) & (reddata > bluedata)){
+   /* if((reddata > redThresh) & (reddata > bluedata)){
       state = SensorState::RED;
    }else if((bluedata > blueThresh) & (bluedata > reddata)){
       state = SensorState::BLUE;
    }else{
       state = SensorState::NONE;
+   } */
+   if((reddata > redThresh)){
+      state = SensorState::RED;
+   }else{
+      state = SensorState::NONE;
    }
+
    if(EN_CALIBRATE_PLOT){
       Serial_Debug.print(bluedata); 
       Serial_Debug.print(","); 
@@ -265,8 +286,10 @@ void setup() {
 
    matchState_int = 99;
    bankedAmpNotes_int = 99;
-   coopState_int = 99;
-   speakerState_int = 99;
+   coopActivated_int = 99;
+   amplifiedTimeRemainingSec_int = 99;
+   amplifiedTimePostWindow_int = 99;
+   amplifiedTimeRemaining_percent = 1.0;
     
    //Set up RGB LED strip lights
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
@@ -386,6 +409,8 @@ int incoming_FMS_Byte = 0; // for incoming FMS serial data
 int int_Calibrate = 0; // for incoming serial data
 bool signOfLifePi = false;
 bool signOfLifePi_State = false;
+bool coopBTN_ONS = false;
+bool amplifyBTN_ONS = false;
 
 void loop(){
    long int currentTime = millis();
@@ -445,24 +470,23 @@ void loop(){
          if((incoming_FMS_Byte >= 30) & (incoming_FMS_Byte <= 39)){
             bankedAmpNotes_int = incoming_FMS_Byte;
          }
-         /* if((incoming_FMS_Byte >= 40) & (incoming_FMS_Byte <= 49)){
-            speakerState_int = incoming_FMS_Byte;
-         }
+         //Check if incoming Byte is BankedAmpNotes
          if((incoming_FMS_Byte >= 50) & (incoming_FMS_Byte <= 59)){
-            coopState_int = incoming_FMS_Byte;
+            coopActivated_int = incoming_FMS_Byte;
          }
-          if((incoming_FMS_Byte >= 100) & (incoming_FMS_Byte <= 200)){
-            Serial_Debug.println("*****************");
-            float num = (incoming_FMS_Byte-100);
-            Serial_Debug.print("num: ");
-            Serial_Debug.println(num);
-            if(speakerState_int != 40 ){
-               amp_percent = float( (incoming_FMS_Byte-100)/100.0);
-               Serial_Debug.print("amp_percent: ");
-               Serial_Debug.println(amp_percent);
-            }
-            
-         } */
+         //Time of Amplification
+         if((incoming_FMS_Byte >= 100) & (incoming_FMS_Byte <= 200)){
+           amplifiedTimeRemainingSec_int = incoming_FMS_Byte - 100;
+           amplifiedTimeRemaining_percent = amplifiedTimeRemainingSec_int/10.0;
+           Serial_Debug.print("amplifiedTimeRemainingSec_int: ");
+           Serial_Debug.println(amplifiedTimeRemainingSec_int);
+           Serial_Debug.print("amplifiedTimeRemaining_percent: ");
+           Serial_Debug.println(amplifiedTimeRemaining_percent);
+         }
+         //Ampllification window
+         if((incoming_FMS_Byte >= 40) & (incoming_FMS_Byte <= 49)){
+            amplifiedTimePostWindow_int = incoming_FMS_Byte;
+         }
       }
    }
    //set the led backgound color
@@ -513,36 +537,47 @@ void loop(){
       }
    
       switch (bankedAmpNotes_int){
-      case 31: //
-         fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
-         break;
-      case 32: //
-         fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
-         fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, ALLIANCE);
-         break;
-      default:
-         fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, MatchState_LEDs);
-         fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
-         break;
+         case 31: //
+            fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
+            fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
+            break;
+         case 32: //
+            fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
+            fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, ALLIANCE);
+            break;
+         default:
+            fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, MatchState_LEDs);
+            fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
+            break;
       }
 
       
-      switch (coopState_int){
-      case 41: //
-         fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, CRGB::Yellow);
-         break;
-      default:
-         fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, MatchState_LEDs);
-         break;
+      switch (coopActivated_int){
+         case 51: //
+            fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, CRGB::Yellow);
+            break;
+         default:
+            fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, MatchState_LEDs);
+            break;
       }
 
-      switch (speakerState_int){
-      case 51:
-         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, ALLIANCE);
-         break;
-      default:
-         fill_Block(NUM_SPEAKER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
-         break;
+      switch (amplifiedTimeRemainingSec_int){
+         case 1 ... 11:
+            fill_Block(NUM_SPEAKER_TIMER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
+            fill_Block(NUM_SPEAKER_TIMER_LEDS_START , (NUM_SPEAKER_LEDS_LEN * amplifiedTimeRemaining_percent), ALLIANCE);
+            break;
+         default:
+            fill_Block(NUM_SPEAKER_TIMER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
+            break;
+      }
+
+      switch (amplifiedTimePostWindow_int){
+         case 41:
+            fill_Block(NUM_SPEAKER_WINDOW_LEDS_START , NUM_SPEAKER_WINDOW_LEDS_LEN, CRGB::Yellow);
+            break;
+         case 40:
+            amplifiedTimeRemainingSec_int = 0;
+            break;
       }
       
 
@@ -552,18 +587,26 @@ void loop(){
    if (!digitalRead(coopBTN_input)){
       digitalWrite(coopBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
-      Serial1_FMS_Amp.print("C");
+      if(!coopBTN_ONS){
+         Serial1_FMS_Amp.print("C");
+         coopBTN_ONS = true;
+      }
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
       digitalWrite(coopBTN_led, LOW);
+      coopBTN_ONS = false;
    }                
    if (!digitalRead(amplifyBTN_input)){
       digitalWrite(amplifyBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
-      Serial1_FMS_Amp.print("K");
+      if(!amplifyBTN_ONS){
+         Serial1_FMS_Amp.print("K");
+         amplifyBTN_ONS = true;
+      }
    }else{
       leds[test_Note_ID_Pin] = CRGB::Black;
       digitalWrite(amplifyBTN_led, LOW);
+      amplifyBTN_ONS = false;
    }
    //***********************************************************
   
