@@ -84,6 +84,13 @@ amplifiedTimeRemainingSec_char_msg_map = {
 
 # Return the first arduino mega connected to PC
 def find_arduino_port(): 
+    for port in serial.tools.list_ports.comports():
+        print('PortID: ' + port.hwid)
+        if 'VID:PID=10C4:EA60' in port.hwid:   
+            return port.device
+        
+# Return the first arduino mega connected to PC
+""" def find_arduino_port(): 
     global isWindows
     for port in serial.tools.list_ports.comports():
         print('PortID: ' + port.hwid)
@@ -93,7 +100,7 @@ def find_arduino_port():
         if(isWindows):
             return port.device
         else:
-            return '/dev/ttyS0'
+            return '/dev/ttyS0' """
         
 # Retur char recieved from arduino
 def get_serial_char(usb_connection):

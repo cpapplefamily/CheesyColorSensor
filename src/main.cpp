@@ -4,8 +4,8 @@
 #include <Adafruit_TiCoServo.h>
 #include <ArduinoJson.h>
 
-#define Serial1_FMS_Amp Serial1
-#define Serial_Debug Serial
+#define Serial_FMS_Amp Serial
+#define Serial_Debug Serial1
 
 //#define ALLIANCE CRGB::Red
 #define ALLIANCE CRGB::Blue
@@ -257,11 +257,11 @@ void configerSensorLED(boolean Enable_All){
 void setup() {
    // Initialize "debug" serial port
   // The data rate must be much higher than the "link" serial port
-   Serial_Debug.begin(115200);
+   Serial_Debug.begin(9600);
 
    // Initialize the "link" serial port
    // Use a low data rate to reduce the error ratio
-   Serial1_FMS_Amp.begin(9600);
+   Serial_FMS_Amp.begin(9600);
 
    myservo.attach(PWM_PIN);  // attaches the servo on PWM_PIN to the servo object
 
@@ -370,8 +370,8 @@ void recvWithEndMarker() {
     char endMarker = '\n';
     char rc;
     
-    while (Serial1_FMS_Amp.available() > 0 && newData == false) {
-        rc = Serial1_FMS_Amp.read();
+    while (Serial_FMS_Amp.available() > 0 && newData == false) {
+        rc = Serial_FMS_Amp.read();
         
         if (rc != endMarker) {
             receivedChars[ndx] = rc;
@@ -522,7 +522,7 @@ void loop(){
             //Serial_Debug.println("Is red");
             if((ampSensorScored_ONS[i]!= SensorState::RED)){
                //Serial_Debug.println("**********RED**************");
-               Serial1_FMS_Amp.print("A");
+               Serial_FMS_Amp.print("A");
                ampSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
                //fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, CRGB::Red); 
@@ -588,7 +588,7 @@ void loop(){
       digitalWrite(coopBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
       if(!coopBTN_ONS){
-         Serial1_FMS_Amp.print("C");
+         Serial_FMS_Amp.print("C");
          coopBTN_ONS = true;
       }
    }else{
@@ -600,7 +600,7 @@ void loop(){
       digitalWrite(amplifyBTN_led, HIGH);
       leds[test_Note_ID_Pin] = CRGB::Red;
       if(!amplifyBTN_ONS){
-         Serial1_FMS_Amp.print("K");
+         Serial_FMS_Amp.print("K");
          amplifyBTN_ONS = true;
       }
    }else{
