@@ -11,10 +11,7 @@ FMS_IP = "10.0.100.05"
 #FMS_IP = "192.168.1.187"
 FMS_PORT = "8080"
 FMS_SERVER = FMS_IP + ":" + FMS_PORT
-#ALLIANCE_COLOR = 'Red' # Change accordingly
-ALLIANCE_COLOR = 'Blue' # Change accordingly
-USERNAME = 'admin'
-PASSWORD = 'ProliantDL160'
+
 
 serial_Msg = 0b00000000
 
@@ -26,6 +23,20 @@ curent_matchState = '9'
 en_Serial_Print = False
 current_amplifiedTimeRemainingSec = 0
        
+def get_variables_from_file(file_path):
+    variables = {}
+    try:
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+            for line in lines:
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    variables[key.strip()] = value.strip()
+    except FileNotFoundError:
+        print(f"The file {file_path} does not exist.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    return variables
 
 goal_char_msg_map = {
     "S": '{ "type": "S" }',
@@ -110,6 +121,9 @@ def get_on_ws_open_callback(usb_connection):
     return on_ws_open
                 
 def on_message(ws, message):
+    global ALLIANCE_COLOR 
+    global USERNAME 
+    global PASSWORD 
     global curent_matchState
     global en_Serial_Print
     global current_coopActivated
@@ -172,6 +186,10 @@ def on_message(ws, message):
 
 # Production use for opening a Websocket
 def open_websocket(serial_connection):
+    global ALLIANCE_COLOR 
+    global USERNAME 
+    global PASSWORD 
+
     def reopen_websocket():
         open_websocket(serial_connection)
 
@@ -191,6 +209,17 @@ def open_websocket(serial_connection):
 
 
 def main():
+    global ALLIANCE_COLOR 
+    global USERNAME 
+    global PASSWORD 
+
+    #load configs
+    file_path = 'src/Python/config.txt'
+    variables_dict = get_variables_from_file(file_path)
+    ALLIANCE_COLOR = variables_dict.get('ALLIANCE_COLOR')
+    USERNAME = variables_dict.get('USERNAME')
+    PASSWORD = variables_dict.get('PASSWORD')
+
     """Loops until a connection is made to the Arduino.
     When connected advances to check for Area
     """
