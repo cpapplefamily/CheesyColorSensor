@@ -480,9 +480,35 @@ void loop(){
             leds[test_Note_ID_LED] = CRGB::Black;   
          };   
       }
+
+      //amplifiedTimePostWindow timer
+      if ((incoming_FMS_Byte & (1 << 2)) && (!amplifiedTimeWindow_Active)){
+         amplifiedTime_start  = millis();
+         amplifiedTime_elaps = 0;
+         amplifiedTimeWindow_Active = true;
+      }
+      // Calculate Running Time
+      if (amplifiedTimeWindow_Active){
+         amplifiedTime_elaps = currentTime - amplifiedTime_start;
+      }
+      // Close the Window Active
+      if ((amplifiedTime_elaps >= 13000) | !(incoming_FMS_Byte & (1 << 2))){
+         amplifiedTimeWindow_Active = false;
+         amplifiedTime_elaps = 0;
+      }
    
-      //Amplified
-      if (!(incoming_FMS_Byte & (1 << 2))){
+      //Banked Amp Notes
+      if ((amplifiedTimeWindow_Active) && (amplifiedTime_elaps <= 10000)){
+         //Amplified Active
+         if (hartBeat){
+            fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
+            fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
+         }else{     
+            fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, MatchState_LEDs);
+            fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, ALLIANCE);
+         }
+      }else{
+         //Banked Amp Note Indicator
          if ((incoming_FMS_Byte & (1 << 0))){
             fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
             fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
@@ -493,15 +519,6 @@ void loop(){
             fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, MatchState_LEDs);
             fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
          }
-      }else{
-         if (hartBeat){
-            fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
-            fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
-         }else{     
-            fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, MatchState_LEDs);
-            fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, ALLIANCE);
-         }
-         
       }
       
 
@@ -510,22 +527,6 @@ void loop(){
          fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, CRGB::Yellow);
       }else{
          fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, MatchState_LEDs);
-      }
-
-
-  
-      //amplifiedTimePostWindow timer
-      if ((incoming_FMS_Byte & (1 << 2)) && (!amplifiedTimeWindow_Active)){
-         amplifiedTime_start  = millis();
-         amplifiedTime_elaps = 0;
-         amplifiedTimeWindow_Active = true;
-      }
-      if (amplifiedTimeWindow_Active){
-         amplifiedTime_elaps = currentTime - amplifiedTime_start;
-      }
-      if (amplifiedTime_elaps >= 13000){
-         amplifiedTimeWindow_Active = false;
-         amplifiedTime_elaps = 0;
       }
      
 
@@ -545,7 +546,7 @@ void loop(){
          fill_Block(NUM_SPEAKER_TIMER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
       }
 
-
+      //Show a few Yellow LED when window open after timer
       if(amplifiedTimeWindow_Active){
          fill_Block(NUM_SPEAKER_WINDOW_LEDS_START , NUM_SPEAKER_WINDOW_LEDS_LEN, CRGB::Yellow);
       }else{
