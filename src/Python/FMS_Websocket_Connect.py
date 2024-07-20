@@ -176,7 +176,7 @@ def on_message(ws, message):
     #fill in the message
     if(curent_matchState < 6):
         serial_Msg = serial_Msg | int(curent_bankedAmpNotes)
-        if(current_amplifiedTimeRemainingSec > 0):
+        if(current_amplifiedTimePostWindow):
             serial_Msg = serial_Msg | 0b00000100
         if(current_coopActivated):
             serial_Msg = serial_Msg | 0b00001000
