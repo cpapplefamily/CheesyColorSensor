@@ -10,7 +10,10 @@
 //#define ALLIANCE CRGB::Red
 #define ALLIANCE CRGB::Blue
 
-#define test_Note_ID_Pin 5
+#define test_Note_ID_LED 0
+#define test_amplifyBTN_LED 1
+#define test_coopBTN_LED 2
+
 //Servo myservo;  // create servo object to control a servo
 Adafruit_TiCoServo myservo;  // create servo object to control a servo
 
@@ -78,9 +81,7 @@ int blueThresh = 90;
 #define SIGN_OF_LIFE_AR 140
 #define SIGN_OF_LIFE_PI SIGN_OF_LIFE_AR + 1
 
-
 boolean EN_CALIBRATE_PLOT = false;
-
 
 enum SensorState {
                   NONE,
@@ -89,50 +90,6 @@ enum SensorState {
                   GREEN
                   };
 
-enum MatchState {
-               PreMatch,         // 20
-               StartMatch,       // 21
-               WarmupPeriod,     // 22
-               AutoPeriod,       // 23
-               PausePeriod,      // 24
-               TeleopPeriod,     // 25
-               PostMatch,        // 26
-               TimeoutActive,    // 27
-               PostTimeout,      // 28
-               None              // 29
-               };
-
-/*
-matchState_char_msg_map = {
-    "0": '20',
-    "1": '21',
-    "2": '22',
-    "3": '23',
-    "4": '24',
-    "5": '25',
-    "6": '26',
-    "7": '27',
-    "8": '28',
-    "9": '29'
-}
-
-bankedAmpNotes_char_msg_map = {
-    "0": '30',
-    "1": '31',
-    "2": '32'
-}
-
-speakerState_char_msg_map = {
-    "0": '40',
-    "1": '41',
-    "2": '42'
-}
-
-coopState_char_msg_map = {
-    "0": '50',
-    "1": '51'
-}
-*/
 
 CRGB MatchState_LEDs = CRGB::Black;
 int matchState_int; //Not set
@@ -146,11 +103,8 @@ float amplifiedTimeRemaining_percent;
 SensorState ampSensorState[NUM_AMP_SENSORS];
 SensorState ampSensorScored_ONS[NUM_AMP_SENSORS];
 
-
 #include "ColorTrigger.h"
-
 ColorTrigger ampTrigger[NUM_AMP_SENSORS];
-
 
 #include "Debouncer.h"
 double debounceTime_RED = 60;  //Sensor must be on or off
@@ -160,8 +114,6 @@ Debouncer::DebounceType debounceType = Debouncer::DebounceType::kBoth;
 Debouncer debouncAMP[NUM_AMP_SENSORS] = {
                                              {debounceTime_RED, debounceType}
                                              };
-
-
 
 //**********************//
 // Set Up Color sensors //
@@ -283,13 +235,6 @@ void setup() {
    
    digitalWrite(S0pin, (sensorPowerScale >> 0) & 1);
    digitalWrite(S1pin, (sensorPowerScale >> 1) & 1);
-
-   matchState_int = 99;
-   bankedAmpNotes_int = 99;
-   coopActivated_int = 99;
-   amplifiedTimeRemainingSec_int = 99;
-   amplifiedTimePostWindow_int = 99;
-   amplifiedTimeRemaining_percent = 1.0;
     
    //Set up RGB LED strip lights
    FastLED.setMaxPowerInVoltsAndMilliamps( VOLTS, MAX_MA);
@@ -331,16 +276,16 @@ void fill_Block(int fill, int block, CRGB color){
 
 CRGB setMatchStateLED(int matchState){
    switch (matchState){
-      case 20: //PreMatch
+      case 0: //PreMatch
          return CRGB::Green;
          break;
-      case 21 ... 25: //StartMatch
+      case 1 ... 5: //StartMatch
          return CRGB::Black;
          break;
-      case 26: // PostMatch
+      case 6: // PostMatch
          return CRGB::Violet;
          break;
-      case 27 ... 28: // TimeoutActive
+      case 7 ... 8: // TimeoutActive
          return CRGB::Black;
          break;
       default:
@@ -359,7 +304,6 @@ void run_Agitator(boolean run){
    myservo.write(val);   
 }
 
-
 const byte numChars = 32;
 char receivedChars[numChars];   // an array to store the received data
 
@@ -369,23 +313,31 @@ void recvWithEndMarker() {
     static byte ndx = 0;
     char endMarker = '\n';
     char rc;
-    
     while (Serial1_FMS_Amp.available() > 0 && newData == false) {
-        rc = Serial1_FMS_Amp.read();
-        
-        if (rc != endMarker) {
-            receivedChars[ndx] = rc;
-            ndx++;
-            if (ndx >= numChars) {
-                ndx = numChars - 1;
-            }
-        }
-        else {
-            receivedChars[ndx] = '\0'; // terminate the string
-            ndx = 0;
-            newData = true;
-        }
+
+
+
+      rc = Serial1_FMS_Amp.read();
+      Serial_Debug.print(rc); 
+      Serial_Debug.print("  "); 
+      if (rc != endMarker) {
+         receivedChars[ndx] = rc;
+         ndx++;
+         if (ndx >= numChars) {
+            Serial_Debug.println("Flare 01");
+            ndx = numChars - 1;
+         }
+      }
+      else {
+         Serial_Debug.print(" EOL "); 
+         receivedChars[ndx] = '\0'; // terminate the string
+         ndx = 0;
+         newData = true;
+      }
     }
+      if(newData){
+         Serial_Debug.println(); 
+      }
 }
 
 /**
@@ -411,6 +363,9 @@ bool signOfLifePi = false;
 bool signOfLifePi_State = false;
 bool coopBTN_ONS = false;
 bool amplifyBTN_ONS = false;
+long int amplifiedTime_start;
+long int amplifiedTime_elaps;
+bool amplifiedTimeWindow_Active = false;
 
 void loop(){
    long int currentTime = millis();
@@ -440,60 +395,35 @@ void loop(){
 
    //Check the FMS Serial Port
    recvWithEndMarker();
+   
    if (newData == true) {
-       //Serial.print("This just in ... ");
-       //Serial.println(receivedChars);
+      newData = false;
 
-      // read the incoming byte:
-      //incomingByte = Serial1.parseInt();
       incoming_FMS_Byte = 0;
       incoming_FMS_Byte = atoi(receivedChars);
 
       Serial_Debug.print("incoming Number: ");
       Serial_Debug.println(incoming_FMS_Byte);
 
-      newData = false;
+      //set the led backgound color
+      matchState_int = (incoming_FMS_Byte & 0xf0) >> 4; // Number stored in the last 4 bits
+      MatchState_LEDs = setMatchStateLED(matchState_int);
+
+      Serial_Debug.print("matchState_int: ");
+      Serial_Debug.println(matchState_int);
       
       signOfLifePi = true;
    
       if(((incoming_FMS_Byte) == '\r' || (incoming_FMS_Byte) == '\n')){
-         //Do Nothing
+      
       }else{
-         //Check if incoming Byte is Match State
-         if((incoming_FMS_Byte) >= 20 & (incoming_FMS_Byte <= 29)){
-            matchState_int = incoming_FMS_Byte;
-            Serial_Debug.print("Incoming  matchState_int: ");
-            Serial_Debug.println(matchState_int);
-         }
-
-         //Check if incoming Byte is BankedAmpNotes
-         if((incoming_FMS_Byte >= 30) & (incoming_FMS_Byte <= 39)){
-            bankedAmpNotes_int = incoming_FMS_Byte;
-         }
-         //Check if incoming Byte is BankedAmpNotes
-         if((incoming_FMS_Byte >= 50) & (incoming_FMS_Byte <= 59)){
-            coopActivated_int = incoming_FMS_Byte;
-         }
-         //Time of Amplification
-         if((incoming_FMS_Byte >= 100) & (incoming_FMS_Byte <= 200)){
-           amplifiedTimeRemainingSec_int = incoming_FMS_Byte - 100;
-           amplifiedTimeRemaining_percent = amplifiedTimeRemainingSec_int/10.0;
-           Serial_Debug.print("amplifiedTimeRemainingSec_int: ");
-           Serial_Debug.println(amplifiedTimeRemainingSec_int);
-           Serial_Debug.print("amplifiedTimeRemaining_percent: ");
-           Serial_Debug.println(amplifiedTimeRemaining_percent);
-         }
-         //Ampllification window
-         if((incoming_FMS_Byte >= 40) & (incoming_FMS_Byte <= 49)){
-            amplifiedTimePostWindow_int = incoming_FMS_Byte;
-         }
+           
       }
    }
-   //set the led backgound color
-   MatchState_LEDs = setMatchStateLED(matchState_int);
+
 
    // Run Agitator if match running
-   if(matchState_int>20 & matchState_int<26){
+   if(matchState_int>0 & matchState_int<6){
          run_Agitator(true);
    }else{
       run_Agitator(false);
@@ -526,85 +456,115 @@ void loop(){
                ampSensorScored_ONS[i]= SensorState::RED;
                //delay(3000);
                //fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, CRGB::Red); 
-               leds[0] = ALLIANCE;
+               leds[test_Note_ID_LED] = ALLIANCE;
             }
             
          }else{
             ampSensorScored_ONS[i]= SensorState::NONE;
             //fill_Block(NUM_AMP1_LEDS_START + (i * NUM_AMP1_LEDS_LEN), NUM_AMP1_LEDS_LEN, MatchState_LEDs);  
-            leds[0] = CRGB::Black;   
+            leds[test_Note_ID_LED] = CRGB::Black;   
          };   
       }
    
-      switch (bankedAmpNotes_int){
-         case 31: //
+      //Amplified
+      if (!(incoming_FMS_Byte & (1 << 2))){
+         if ((incoming_FMS_Byte & (1 << 0))){
             fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
             fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
-            break;
-         case 32: //
+         }else if (incoming_FMS_Byte & (1 << 1)){     
             fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
             fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, ALLIANCE);
-            break;
-         default:
+         }else{
             fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, MatchState_LEDs);
             fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
-            break;
+         }
+      }else{
+         if (hartBeat){
+            fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, ALLIANCE);
+            fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, MatchState_LEDs);
+         }else{     
+            fill_Block(NUM_AMP1_LEDS_START , NUM_AMP1_LEDS_LEN, MatchState_LEDs);
+            fill_Block(NUM_AMP2_LEDS_START , NUM_AMP2_LEDS_LEN, ALLIANCE);
+         }
+         
       }
-
       
-      switch (coopActivated_int){
-         case 51: //
-            fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, CRGB::Yellow);
-            break;
-         default:
-            fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, MatchState_LEDs);
-            break;
+
+      // Co-op Light
+      if (incoming_FMS_Byte & (1 << 3)){
+         fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, CRGB::Yellow);
+      }else{
+         fill_Block(NUM_COOP_LEDS_START , NUM_COOP_LEDS_LEN, MatchState_LEDs);
       }
 
-      switch (amplifiedTimeRemainingSec_int){
-         case 1 ... 11:
-            fill_Block(NUM_SPEAKER_TIMER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
-            fill_Block(NUM_SPEAKER_TIMER_LEDS_START , (NUM_SPEAKER_LEDS_LEN * amplifiedTimeRemaining_percent), ALLIANCE);
-            break;
-         default:
-            fill_Block(NUM_SPEAKER_TIMER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
-            break;
+
+  
+      //amplifiedTimePostWindow timer
+      if ((incoming_FMS_Byte & (1 << 2)) && (!amplifiedTimeWindow_Active)){
+         amplifiedTime_start  = millis();
+         amplifiedTime_elaps = 0;
+         amplifiedTimeWindow_Active = true;
+      }
+      if (amplifiedTimeWindow_Active){
+         amplifiedTime_elaps = currentTime - amplifiedTime_start;
+      }
+      if (amplifiedTime_elaps >= 13000){
+         amplifiedTimeWindow_Active = false;
+         amplifiedTime_elaps = 0;
+      }
+     
+
+      // Speaker LEDS
+      /* if ((amplifiedTimeWindow_Active) && (amplifiedTime_elaps <= 10000)){
+         fill_Block(NUM_SPEAKER_TIMER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
+         fill_Block(NUM_SPEAKER_TIMER_LEDS_START , (NUM_SPEAKER_LEDS_LEN ), ALLIANCE);
+      }else{
+         fill_Block(NUM_SPEAKER_TIMER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
+      } */
+     
+      //Subwoofer LED
+      if ((amplifiedTimeWindow_Active) && (amplifiedTime_elaps <= 10000)){
+         fill_Block(NUM_SPEAKER_TIMER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
+         fill_Block(NUM_SPEAKER_TIMER_LEDS_START , NUM_SPEAKER_LEDS_LEN - (NUM_SPEAKER_LEDS_LEN * float(float(amplifiedTime_elaps)/10000.0)), ALLIANCE);
+      }else{
+         fill_Block(NUM_SPEAKER_TIMER_LEDS_START , NUM_SPEAKER_LEDS_LEN, MatchState_LEDs);
       }
 
-      switch (amplifiedTimePostWindow_int){
-         case 41:
-            fill_Block(NUM_SPEAKER_WINDOW_LEDS_START , NUM_SPEAKER_WINDOW_LEDS_LEN, CRGB::Yellow);
-            break;
-         case 40:
-            amplifiedTimeRemainingSec_int = 0;
-            break;
+
+      if(amplifiedTimeWindow_Active){
+         fill_Block(NUM_SPEAKER_WINDOW_LEDS_START , NUM_SPEAKER_WINDOW_LEDS_LEN, CRGB::Yellow);
+      }else{
+         fill_Block(NUM_SPEAKER_WINDOW_LEDS_START , NUM_SPEAKER_WINDOW_LEDS_LEN, MatchState_LEDs);
       }
       
 
    }
 
-   //****************************************************TEMP
+   /*
+               Button Controls
+   */
    if (!digitalRead(coopBTN_input)){
       digitalWrite(coopBTN_led, HIGH);
-      leds[test_Note_ID_Pin] = CRGB::Red;
+      leds[test_coopBTN_LED] = ALLIANCE;
       if(!coopBTN_ONS){
          Serial1_FMS_Amp.print("C");
          coopBTN_ONS = true;
       }
    }else{
-      leds[test_Note_ID_Pin] = CRGB::Black;
+      leds[test_coopBTN_LED] = CRGB::Black;
       digitalWrite(coopBTN_led, LOW);
       coopBTN_ONS = false;
-   }                
+   }     
+   //           
    if (!digitalRead(amplifyBTN_input)){
       digitalWrite(amplifyBTN_led, HIGH);
-      leds[test_Note_ID_Pin] = CRGB::Red;
+      leds[test_amplifyBTN_LED] = ALLIANCE;
       if(!amplifyBTN_ONS){
          Serial1_FMS_Amp.print("K");
          amplifyBTN_ONS = true;
       }
    }else{
-      leds[test_Note_ID_Pin] = CRGB::Black;
+      leds[test_amplifyBTN_LED] = CRGB::Black;
       digitalWrite(amplifyBTN_led, LOW);
       amplifyBTN_ONS = false;
    }
