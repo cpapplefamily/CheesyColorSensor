@@ -160,11 +160,12 @@ def on_message(ws, message):
             print("Amplification Sec Remaining = ",current_amplifiedTimeRemainingSec)
     
     #fill in the message
-    serial_Msg = serial_Msg | int(curent_bankedAmpNotes)
-    if(current_amplifiedTimeRemainingSec > 0):
-        serial_Msg = serial_Msg | 0b00000100
-    if(current_coopActivated):
-        serial_Msg = serial_Msg | 0b00001000
+    if(curent_matchState < 6):
+        serial_Msg = serial_Msg | int(curent_bankedAmpNotes)
+        if(current_amplifiedTimeRemainingSec > 0):
+            serial_Msg = serial_Msg | 0b00000100
+        if(current_coopActivated):
+            serial_Msg = serial_Msg | 0b00001000
     shifted_curent_matchState = (curent_matchState << 4) & 0xF0
     serial_Msg = serial_Msg | shifted_curent_matchState
     updateArduino = True
