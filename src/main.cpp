@@ -141,6 +141,11 @@ CRGBArray<NUM_LEDS> leds;
 //SensorState getSensorState(GY_31 sensor, CRGB& led){
  
 bool plot_raw_data = false;
+const int numReadings = 10;  // Number of readings to reddata_average
+int readings[numReadings];   // The readings from the analog input
+int readIndex = 0;           // The index of the current reading
+int total = 0;               // The running total
+int reddata_average = 0;             // The reddata_average
 //REturn the Sensor State
 SensorState getSensorState(GY_31 sensor){
    SensorState state;
@@ -148,7 +153,6 @@ SensorState getSensorState(GY_31 sensor){
    //Get Sensor Color Reading
    if(plot_raw_data){
       reddata=sensor.getRED();
-      //bluedata=sensor.getBLUE();
    }else{
       //Map the data from the sensor from 0 to 100
       switch(sensorPowerScale){
@@ -173,6 +177,23 @@ SensorState getSensorState(GY_31 sensor){
       //}
    }
    
+   // Subtract the last reading
+  total = total - readings[readIndex];
+  // Read the next value from the sensor
+  readings[readIndex] = reddata;
+  // Add the reading to the total
+  total = total + readings[readIndex];
+  // Advance to the next position in the array
+  readIndex = readIndex + 1;
+
+  // If we're at the end of the array, wrap around to the beginning
+  if (readIndex >= numReadings) {
+    readIndex = 0;
+  }
+
+  // Calculate the reddata_average
+  reddata_average = total / numReadings;
+  
    //Set some Trigger Threasholds
    /* if((reddata > redThresh) & (reddata > bluedata)){
       state = SensorState::RED;
@@ -181,7 +202,7 @@ SensorState getSensorState(GY_31 sensor){
    }else{
       state = SensorState::NONE;
    } */
-   if((reddata > redThresh)){
+   if((reddata_average > redThresh)){
       state = SensorState::RED;
    }else{
       state = SensorState::NONE;
@@ -190,7 +211,7 @@ SensorState getSensorState(GY_31 sensor){
    if(EN_CALIBRATE_PLOT){
       Serial_Debug.print(bluedata); 
       Serial_Debug.print(","); 
-      Serial_Debug.println(reddata);        
+      Serial_Debug.println(reddata_average);        
    }; 
 
    return state;
@@ -249,6 +270,9 @@ void setup() {
    pinMode(amplifyBTN_led,OUTPUT);
    pinMode(amplifyBTN_input,INPUT_PULLUP);
 
+   for (int i = 0; i < numReadings; i++) {
+    readings[i] = 0;         // Initialize all readings to 0
+  }
 }
 
 void Setup_CALIBRATE_PLOT(int incomingByte){
@@ -314,30 +338,20 @@ void recvWithEndMarker() {
     char endMarker = '\n';
     char rc;
     while (Serial1_FMS_Amp.available() > 0 && newData == false) {
-
-
-
       rc = Serial1_FMS_Amp.read();
-      Serial_Debug.print(rc); 
-      Serial_Debug.print("  "); 
       if (rc != endMarker) {
          receivedChars[ndx] = rc;
          ndx++;
          if (ndx >= numChars) {
-            Serial_Debug.println("Flare 01");
             ndx = numChars - 1;
          }
       }
       else {
-         Serial_Debug.print(" EOL "); 
          receivedChars[ndx] = '\0'; // terminate the string
          ndx = 0;
          newData = true;
       }
     }
-      if(newData){
-         Serial_Debug.println(); 
-      }
 }
 
 /**
@@ -385,7 +399,7 @@ void loop(){
          //Convert to int
          int_Calibrate = incoming_Debug_Byte - '0';
          if(int_Calibrate == 9){
-            EN_CALIBRATE_PLOT = true;           
+            EN_CALIBRATE_PLOT = true;                    
          }else if(int_Calibrate == 8){
             EN_CALIBRATE_PLOT = false; 
             configerSensorLED(true);           
@@ -402,15 +416,9 @@ void loop(){
       incoming_FMS_Byte = 0;
       incoming_FMS_Byte = atoi(receivedChars);
 
-      Serial_Debug.print("incoming Number: ");
-      Serial_Debug.println(incoming_FMS_Byte);
-
       //set the led backgound color
       matchState_int = (incoming_FMS_Byte & 0xf0) >> 4; // Number stored in the last 4 bits
       MatchState_LEDs = setMatchStateLED(matchState_int);
-
-      Serial_Debug.print("matchState_int: ");
-      Serial_Debug.println(matchState_int);
       
       signOfLifePi = true;
    
