@@ -7,8 +7,9 @@
 #define Serial1_FMS_Amp Serial1
 #define Serial_Debug Serial
 
-//#define ALLIANCE CRGB::Red
-#define ALLIANCE CRGB::Blue
+CRGB ALLIANCE = CRGB::Red;
+#define alliance_color_PIN 14
+//#define ALLIANCE CRGB::Blue
 
 #define test_Note_ID_LED 0
 #define test_amplifyBTN_LED 1
@@ -272,6 +273,12 @@ void setup() {
 
    for (int i = 0; i < numReadings; i++) {
     readings[i] = 0;         // Initialize all readings to 0
+  }
+
+
+  pinMode(alliance_color_PIN,INPUT_PULLUP);
+  if(digitalRead(14)){
+   ALLIANCE = CRGB::Blue;
   }
 }
 
