@@ -108,10 +108,13 @@ def get_on_ws_open_callback(usb_connection):
                     if message_Interval.check():
                         #if(updateArduino):
                         #print('update Arduino')
-                        message = str(serial_Msg) + '\n'
-                        print(f'Info: sent to Arduino {serial_Msg}')
+                        #message = str(serial_Msg) + '\n'
+                        #print(f'Info: sent to Arduino {serial_Msg}')
+                        # Byte to send (0b00110011)
+                        byte_to_send = (serial_Msg).to_bytes(1, byteorder='little') + b'\n'
+                        print(f"Sending byte: {hex(byte_to_send[0])}")
                         #usb_connection.write(bytes(message, 'utf-8'))
-                        usb_connection.write((str(serial_Msg) + '\n').encode())
+                        usb_connection.write(byte_to_send)
                         message_Interval.reset()
                         updateArduino = False
                 time.sleep(0.01)  # Sleep for a short while to prevent CPU overload
