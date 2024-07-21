@@ -340,7 +340,7 @@ char receivedChars[numChars];   // an array to store the received data
 
 boolean newData = false;
 
-void recvWithEndMarker() {
+void recvCHRs_WithEndMarker() {
     static byte ndx = 0;
     char endMarker = '\n';
     char rc;
@@ -361,6 +361,26 @@ void recvWithEndMarker() {
     }
 }
 
+byte recvBYTE_WithEndMarker() {
+   
+    static byte ndx = 0;
+    char endMarker = '\n';
+    while (Serial1_FMS_Amp.available() > 0 && newData == false) {
+      byte incomingByte = Serial1_FMS_Amp.read();
+      if (incomingByte != '\n') {
+         // Print the byte to the serial monitor (for debugging)
+         Serial_Debug.print("Received byte: 0b");
+         //Serial_Debug.println(incomingByte, HEX);  // Print as a hexadecimal value
+         Serial_Debug.println(incomingByte, BIN);  // Print as a Binary value
+      }
+      else {
+         newData = true;
+      }
+      return incomingByte;
+    }
+
+}
+
 /**
  * Main Loop
  * 
@@ -377,8 +397,8 @@ boolean hartBeat = false;
     "P": '{ "type": "P" }',
     "O": '{ "type": "O" }
 } */
-int incoming_Debug_Byte = 0; // for incoming Debug serial data
-int incoming_FMS_Byte = 0; // for incoming FMS serial data
+int incoming_Debug_INT = 0; // for incoming Debug serial data
+byte incoming_FMS_Byte = 0; // for incoming FMS serial data
 int int_Calibrate = 0; // for incoming serial data
 bool signOfLifePi = false;
 bool signOfLifePi_State = false;
@@ -397,14 +417,14 @@ void loop(){
       // send a 9 to the console to start Calibration Mode
       // Send a 0-numver of sensors to sellect the desired sensor
       // Send a 8 to end calibration
-      incoming_Debug_Byte = Serial_Debug.read();
+      incoming_Debug_INT = Serial_Debug.read();
         
-      if(((incoming_Debug_Byte) == '\r' || (incoming_Debug_Byte) == '\n')){
+      if(((incoming_Debug_INT) == '\r' || (incoming_Debug_INT) == '\n')){
          //Do Nothing
       }else{
          //Check if incomming byto is a calibration command
          //Convert to int
-         int_Calibrate = incoming_Debug_Byte - '0';
+         int_Calibrate = incoming_Debug_INT - '0';
          if(int_Calibrate == 9){
             EN_CALIBRATE_PLOT = true;                    
          }else if(int_Calibrate == 8){
@@ -415,8 +435,32 @@ void loop(){
    }
 
    //Check the FMS Serial Port
-   recvWithEndMarker();
-   
+   // Check if data is available to read
+  if (Serial1_FMS_Amp.available() > 0) {
+    // Read the incoming byte
+    byte incoming_Byte = Serial1_FMS_Amp.read();
+    
+    // Check if the byte is not the newline character
+    if (incoming_Byte != '\n') {
+      // Print the byte to the serial monitor in binary format
+      Serial_Debug.print("Received byte hex: 0x");
+      Serial_Debug.println(incoming_Byte, HEX);  // Print as a binary value
+
+      matchState_int = (incoming_Byte & 0xf0) >> 4; // Number stored in the last 4 bits
+      Serial_Debug.print("matchState_int: ");
+      Serial_Debug.println(matchState_int);
+
+      MatchState_LEDs = setMatchStateLED(matchState_int);
+
+      signOfLifePi = true;
+
+      incoming_FMS_Byte = incoming_Byte;
+      Serial_Debug.print("incoming_FMS_Byte: 0x");
+      Serial_Debug.println(incoming_Byte, HEX);  // Print as a binary value
+    }
+  }
+
+/*    //recvCHR_WithEndMarker();
    if (newData == true) {
       newData = false;
 
@@ -434,7 +478,7 @@ void loop(){
       }else{
            
       }
-   }
+   } */
 
 
    // Run Agitator if match running
