@@ -50,7 +50,7 @@ int val;
    L  H  2%          1
    H  L  20%         2
    H  H  100%        3*/
-int sensorPowerScale = 2;
+int sensorPowerScale = 1;
 int redThresh = 75;
 int blueThresh = 90;
 
@@ -158,7 +158,8 @@ SensorState getSensorState(GY_31 sensor){
       //Map the data from the sensor from 0 to 100
       switch(sensorPowerScale){
          case 1:
-            reddata=map(sensor.getRED(),0,160,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
+            reddata=map(sensor.getRED(),0,150,UPPER_SCALE_LIM,LOWER_SCALE_LIM); //Day
+            //reddata=map(sensor.getRED(),50,400,UPPER_SCALE_LIM,LOWER_SCALE_LIM); //Morning
             break;
          case 2:
             reddata=map(sensor.getRED(),0,1400,LOWER_SCALE_LIM,UPPER_SCALE_LIM);
